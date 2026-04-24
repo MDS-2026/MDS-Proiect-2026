@@ -32,6 +32,11 @@ public class WalletController {
         return ResponseEntity.ok(walletService.getGroupWallets(groupId));
     }
 
+    @GetMapping("/tree")
+    public ResponseEntity<List<com.mdsproject.backend.dto.wallet.WalletTreeResponse>> getWalletTree(@PathVariable UUID groupId) {
+        return ResponseEntity.ok(walletService.getWalletTree(groupId));
+    }
+
     @GetMapping("/cards")
     public ResponseEntity<List<VirtualCardResponse>> getVirtualCards(@PathVariable UUID groupId) {
         return ResponseEntity.ok(walletService.getGroupVirtualCards(groupId));

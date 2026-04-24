@@ -55,6 +55,7 @@ const api = {
 
   // Wallets
   getWallets: (groupId) => request(`/groups/${groupId}/wallets`),
+  getWalletTree: (groupId) => request(`/groups/${groupId}/wallets/tree`),
   createWallet: (groupId, data) =>
     request(`/groups/${groupId}/wallets`, { method: 'POST', body: JSON.stringify(data) }),
   getVirtualCards: (groupId) => request(`/groups/${groupId}/wallets/cards`),

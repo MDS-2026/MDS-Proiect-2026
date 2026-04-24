@@ -10,6 +10,7 @@ export default function GroupPage() {
   const [group, setGroup] = useState(null);
   const [assets, setAssets] = useState([]);
   const [wallets, setWallets] = useState([]);
+  const [walletTree, setWalletTree] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [virtualCards, setVirtualCards] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -34,6 +35,7 @@ export default function GroupPage() {
   const [walletPurpose, setWalletPurpose] = useState('');
   const [walletBudget, setWalletBudget] = useState('');
   const [walletThreshold, setWalletThreshold] = useState('');
+  const [walletParentId, setWalletParentId] = useState('');
 
   // Transaction form
   const [txWalletId, setTxWalletId] = useState('');
@@ -45,10 +47,11 @@ export default function GroupPage() {
 
   const loadAll = async () => {
     try {
-      const [g, a, w, t, cards, logs] = await Promise.all([
+      const [g, a, w, tree, t, cards, logs] = await Promise.all([
         api.getGroup(id),
         api.getAssets(id),
         api.getWallets(id),
+        api.getWalletTree(id),
         api.getGroupTransactions(id),
         api.getVirtualCards(id),
         api.getAuditLogs(id),
@@ -56,6 +59,7 @@ export default function GroupPage() {
       setGroup(g);
       setAssets(a);
       setWallets(w);
+      setWalletTree(tree);
       setTransactions(t);
       setVirtualCards(cards);
       setAuditLogs(logs);
@@ -85,9 +89,10 @@ export default function GroupPage() {
         purpose: walletPurpose,
         budgetLimit: parseFloat(walletBudget),
         autoApproveThreshold: parseFloat(walletThreshold),
+        parentWalletId: walletParentId || null,
       });
       setShowWalletModal(false);
-      setWalletName(''); setWalletPurpose(''); setWalletBudget(''); setWalletThreshold('');
+      setWalletName(''); setWalletPurpose(''); setWalletBudget(''); setWalletThreshold(''); setWalletParentId('');
       loadAll();
     } catch (err) { setError(err.message); }
   };
@@ -123,9 +128,44 @@ export default function GroupPage() {
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
+    { key: 'tree', label: 'Tree Dashboard' },
     { key: 'cards', label: 'Virtual Cards' },
     { key: 'audit', label: 'Audit Log' },
   ];
+
+  const renderTreeNode = (node, isRoot = false) => {
+    const percent = Math.min(100, (node.spentAmount / node.budgetLimit) * 100) || 0;
+    const progressColor = percent > 90 ? 'var(--red)' : percent > 75 ? 'var(--yellow)' : 'var(--blue)';
+
+    return (
+      <div key={node.id} className={`tree-node ${isRoot ? 'root-node' : ''}`}>
+        <div className="tree-card">
+          <div className="tree-card-header">
+            <span className="tree-card-title">{node.name}</span>
+            <span className="tree-card-purpose">{node.purpose || 'General'}</span>
+          </div>
+          <div className="tree-card-stats">
+            <div className="tree-stat">
+              <span className="tree-stat-label">BUDGET</span>
+              <span className="tree-stat-value">€{node.budgetLimit.toFixed(2)}</span>
+            </div>
+            <div className="tree-stat">
+              <span className="tree-stat-label">SPENT</span>
+              <span className="tree-stat-value">€{node.spentAmount.toFixed(2)}</span>
+            </div>
+          </div>
+          <div className="tree-progress">
+            <div className="tree-progress-bar" style={{ width: `${percent}%`, backgroundColor: progressColor }}></div>
+          </div>
+        </div>
+        {node.children && node.children.length > 0 && (
+          <div className="tree-children">
+            {node.children.map(child => renderTreeNode(child))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   if (!group) return <div className="layout"><Sidebar /><main className="main"><div className="empty">Loading...</div></main></div>;
 
@@ -319,6 +359,19 @@ export default function GroupPage() {
           </div>
         )}
 
+        {activeTab === 'tree' && (
+          <div className="card" style={{ overflow: 'hidden' }}>
+            <div className="table-header" style={{ padding: '0 20px 20px 20px' }}>
+              <div className="table-title">Wallet Hierarchy</div>
+            </div>
+            {walletTree.length === 0 ? <div className="empty">No wallets yet.</div> : (
+              <div className="tree-container">
+                {walletTree.map(root => renderTreeNode(root, true))}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'audit' && (
           <div className="table-section card">
             <div className="table-header">
@@ -388,6 +441,13 @@ export default function GroupPage() {
               <div className="form-group">
                 <label className="form-label">Name</label>
                 <input className="form-input" value={walletName} onChange={e => setWalletName(e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Parent Wallet (optional)</label>
+                <select className="form-input" value={walletParentId} onChange={e => setWalletParentId(e.target.value)}>
+                  <option value="">None (Root Wallet)</option>
+                  {wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Purpose</label>

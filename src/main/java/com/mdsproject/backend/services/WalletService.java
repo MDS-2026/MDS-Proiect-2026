@@ -21,6 +21,9 @@ import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.mdsproject.backend.dto.wallet.WalletTreeResponse;
+import com.mdsproject.backend.models.enums.TransactionStatus;
+
 @Service
 @RequiredArgsConstructor
 public class WalletService {
@@ -68,6 +71,36 @@ public class WalletService {
         return walletRepository.findByGroupId(groupId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    public List<WalletTreeResponse> getWalletTree(UUID groupId) {
+        List<Wallet> allWallets = walletRepository.findByGroupId(groupId);
+        // Find root wallets (those with no parent)
+        return allWallets.stream()
+                .filter(w -> w.getParentWallet() == null)
+                .map(this::toTreeResponse)
+                .collect(Collectors.toList());
+    }
+
+    private WalletTreeResponse toTreeResponse(Wallet wallet) {
+        double spent = wallet.getTransactions().stream()
+                .filter(t -> t.getStatus() == TransactionStatus.APPROVED)
+                .mapToDouble(t -> t.getAmount())
+                .sum();
+
+        List<WalletTreeResponse> children = wallet.getSubWallets().stream()
+                .map(this::toTreeResponse)
+                .collect(Collectors.toList());
+
+        return new WalletTreeResponse(
+                wallet.getId(),
+                wallet.getName(),
+                wallet.getPurpose(),
+                wallet.getBudgetLimit(),
+                wallet.getAutoApproveThreshold(),
+                spent,
+                children
+        );
     }
 
     public VirtualCardResponse getVirtualCard(UUID walletId) {
