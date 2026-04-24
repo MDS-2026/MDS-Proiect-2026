@@ -1,5 +1,6 @@
 package com.mdsproject.backend.controllers;
 
+import com.mdsproject.backend.dto.group.ChangeRoleRequest;
 import com.mdsproject.backend.dto.group.CreateGroupRequest;
 import com.mdsproject.backend.dto.group.GroupResponse;
 import com.mdsproject.backend.dto.group.JoinGroupRequest;
@@ -40,5 +41,12 @@ public class GroupController {
     @GetMapping("/{id}")
     public ResponseEntity<GroupResponse> getGroup(@PathVariable UUID id) {
         return ResponseEntity.ok(groupService.getGroupById(id));
+    }
+
+    @PatchMapping("/{groupId}/roles")
+    public ResponseEntity<GroupResponse> changeRole(Authentication auth,
+                                                    @PathVariable UUID groupId,
+                                                    @Valid @RequestBody ChangeRoleRequest request) {
+        return ResponseEntity.ok(groupService.changeRole(auth.getName(), groupId, request));
     }
 }

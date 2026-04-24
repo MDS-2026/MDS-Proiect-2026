@@ -1,0 +1,14 @@
+package com.mdsproject.backend.models.enums;
+
+public enum AuditAction {
+    GROUP_CREATED,
+    GROUP_JOINED,
+    ROLE_CHANGED,
+    WALLET_CREATED,
+    ASSET_ADDED,
+    TRANSACTION_CREATED,
+    TRANSACTION_APPROVED,
+    TRANSACTION_DECLINED,
+    VIRTUAL_CARD_GENERATED,
+    AUTO_APPROVE_THRESHOLD_CHANGED
+}

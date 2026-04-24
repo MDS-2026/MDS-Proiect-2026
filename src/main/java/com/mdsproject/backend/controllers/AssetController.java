@@ -6,6 +6,7 @@ import com.mdsproject.backend.services.AssetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,8 +21,9 @@ public class AssetController {
 
     @PostMapping
     public ResponseEntity<AssetResponse> addAsset(@PathVariable UUID groupId,
-                                                  @Valid @RequestBody CreateAssetRequest request) {
-        return ResponseEntity.ok(assetService.addAsset(groupId, request));
+                                                  @Valid @RequestBody CreateAssetRequest request,
+                                                  Authentication auth) {
+        return ResponseEntity.ok(assetService.addAsset(groupId, request, auth.getName()));
     }
 
     @GetMapping

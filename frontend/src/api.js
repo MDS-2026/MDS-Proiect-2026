@@ -45,6 +45,8 @@ const api = {
     request('/groups', { method: 'POST', body: JSON.stringify({ name }) }),
   joinGroup: (inviteCode) =>
     request('/groups/join', { method: 'POST', body: JSON.stringify({ inviteCode }) }),
+  changeRole: (groupId, userId, role) =>
+    request(`/groups/${groupId}/roles`, { method: 'PATCH', body: JSON.stringify({ userId, role }) }),
 
   // Assets
   getAssets: (groupId) => request(`/groups/${groupId}/assets`),
@@ -55,6 +57,10 @@ const api = {
   getWallets: (groupId) => request(`/groups/${groupId}/wallets`),
   createWallet: (groupId, data) =>
     request(`/groups/${groupId}/wallets`, { method: 'POST', body: JSON.stringify(data) }),
+  getVirtualCards: (groupId) => request(`/groups/${groupId}/wallets/cards`),
+  getVirtualCard: (groupId, walletId) => request(`/groups/${groupId}/wallets/${walletId}/card`),
+  updateThreshold: (groupId, walletId, threshold) =>
+    request(`/groups/${groupId}/wallets/${walletId}/threshold?threshold=${threshold}`, { method: 'PATCH' }),
 
   // Transactions
   getWalletTransactions: (walletId) => request(`/wallets/${walletId}/transactions`),
@@ -65,6 +71,9 @@ const api = {
     request(`/transactions/${id}/approve`, { method: 'PATCH' }),
   declineTransaction: (id) =>
     request(`/transactions/${id}/decline`, { method: 'PATCH' }),
+
+  // Audit Log
+  getAuditLogs: (groupId) => request(`/groups/${groupId}/audit`),
 
   getToken,
   setToken,

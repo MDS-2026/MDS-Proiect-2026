@@ -5,6 +5,7 @@ import com.mdsproject.backend.dto.transaction.TransactionResponse;
 import com.mdsproject.backend.exceptions.ResourceNotFoundException;
 import com.mdsproject.backend.models.Transaction;
 import com.mdsproject.backend.models.Wallet;
+import com.mdsproject.backend.models.enums.AuditAction;
 import com.mdsproject.backend.models.enums.TransactionStatus;
 import com.mdsproject.backend.repositories.TransactionRepository;
 import com.mdsproject.backend.repositories.WalletRepository;
@@ -22,9 +23,10 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final WalletRepository walletRepository;
+    private final AuditLogService auditLogService;
 
     @Transactional
-    public TransactionResponse createTransaction(UUID walletId, CreateTransactionRequest request) {
+    public TransactionResponse createTransaction(UUID walletId, CreateTransactionRequest request, String email) {
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
 
@@ -42,6 +44,12 @@ public class TransactionService {
         }
 
         transactionRepository.save(tx);
+
+        auditLogService.log(AuditAction.TRANSACTION_CREATED, email,
+                wallet.getGroup().getId(), tx.getId(),
+                "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
+                        + " on wallet '" + wallet.getName() + "' — Status: " + tx.getStatus());
+
         return toResponse(tx);
     }
 
@@ -58,20 +66,30 @@ public class TransactionService {
     }
 
     @Transactional
-    public TransactionResponse approveTransaction(UUID txId) {
+    public TransactionResponse approveTransaction(UUID txId, String email) {
         Transaction tx = transactionRepository.findById(txId)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
         tx.setStatus(TransactionStatus.APPROVED);
         transactionRepository.save(tx);
+
+        auditLogService.log(AuditAction.TRANSACTION_APPROVED, email,
+                tx.getWallet().getGroup().getId(), tx.getId(),
+                "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant() + " approved");
+
         return toResponse(tx);
     }
 
     @Transactional
-    public TransactionResponse declineTransaction(UUID txId) {
+    public TransactionResponse declineTransaction(UUID txId, String email) {
         Transaction tx = transactionRepository.findById(txId)
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
         tx.setStatus(TransactionStatus.DECLINED);
         transactionRepository.save(tx);
+
+        auditLogService.log(AuditAction.TRANSACTION_DECLINED, email,
+                tx.getWallet().getGroup().getId(), tx.getId(),
+                "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant() + " declined");
+
         return toResponse(tx);
     }
 

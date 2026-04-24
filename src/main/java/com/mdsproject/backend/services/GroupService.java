@@ -6,6 +6,7 @@ import com.mdsproject.backend.exceptions.ResourceNotFoundException;
 import com.mdsproject.backend.models.FairPayGroup;
 import com.mdsproject.backend.models.GroupMembership;
 import com.mdsproject.backend.models.User;
+import com.mdsproject.backend.models.enums.AuditAction;
 import com.mdsproject.backend.models.enums.Role;
 import com.mdsproject.backend.repositories.FairPayGroupRepository;
 import com.mdsproject.backend.repositories.GroupMembershipRepository;
@@ -25,6 +26,7 @@ public class GroupService {
     private final FairPayGroupRepository groupRepository;
     private final GroupMembershipRepository membershipRepository;
     private final UserRepository userRepository;
+    private final AuditLogService auditLogService;
 
     @Transactional
     public GroupResponse createGroup(String email, CreateGroupRequest request) {
@@ -41,6 +43,9 @@ public class GroupService {
         membership.setGroup(group);
         membership.setRole(Role.ADMIN);
         membershipRepository.save(membership);
+
+        auditLogService.log(AuditAction.GROUP_CREATED, email, group.getId(), group.getId(),
+                "Group '" + group.getName() + "' created");
 
         return toGroupResponse(group);
     }
@@ -62,6 +67,42 @@ public class GroupService {
         membership.setGroup(group);
         membership.setRole(Role.MEMBER);
         membershipRepository.save(membership);
+
+        auditLogService.log(AuditAction.GROUP_JOINED, email, group.getId(), user.getId(),
+                email + " joined the group");
+
+        return toGroupResponse(group);
+    }
+
+    @Transactional
+    public GroupResponse changeRole(String email, UUID groupId, ChangeRoleRequest request) {
+        User requester = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        FairPayGroup group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
+
+        // Verify requester is ADMIN
+        GroupMembership requesterMembership = membershipRepository
+                .findByUserIdAndGroupId(requester.getId(), groupId)
+                .orElseThrow(() -> new BadRequestException("You are not a member of this group"));
+
+        if (requesterMembership.getRole() != Role.ADMIN) {
+            throw new BadRequestException("Only admins can change roles");
+        }
+
+        // Find target membership
+        GroupMembership targetMembership = membershipRepository
+                .findByUserIdAndGroupId(request.getUserId(), groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Target user is not a member of this group"));
+
+        Role newRole = Role.valueOf(request.getRole().toUpperCase());
+        Role oldRole = targetMembership.getRole();
+        targetMembership.setRole(newRole);
+        membershipRepository.save(targetMembership);
+
+        auditLogService.log(AuditAction.ROLE_CHANGED, email, groupId, request.getUserId(),
+                "Role changed from " + oldRole + " to " + newRole + " for user " + targetMembership.getUser().getEmail());
 
         return toGroupResponse(group);
     }

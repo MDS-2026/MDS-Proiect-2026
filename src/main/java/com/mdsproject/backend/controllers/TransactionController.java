@@ -6,6 +6,7 @@ import com.mdsproject.backend.services.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,8 +20,9 @@ public class TransactionController {
 
     @PostMapping("/api/wallets/{walletId}/transactions")
     public ResponseEntity<TransactionResponse> createTransaction(@PathVariable UUID walletId,
-                                                                 @Valid @RequestBody CreateTransactionRequest request) {
-        return ResponseEntity.ok(transactionService.createTransaction(walletId, request));
+                                                                 @Valid @RequestBody CreateTransactionRequest request,
+                                                                 Authentication auth) {
+        return ResponseEntity.ok(transactionService.createTransaction(walletId, request, auth.getName()));
     }
 
     @GetMapping("/api/wallets/{walletId}/transactions")
@@ -34,12 +36,12 @@ public class TransactionController {
     }
 
     @PatchMapping("/api/transactions/{id}/approve")
-    public ResponseEntity<TransactionResponse> approve(@PathVariable UUID id) {
-        return ResponseEntity.ok(transactionService.approveTransaction(id));
+    public ResponseEntity<TransactionResponse> approve(@PathVariable UUID id, Authentication auth) {
+        return ResponseEntity.ok(transactionService.approveTransaction(id, auth.getName()));
     }
 
     @PatchMapping("/api/transactions/{id}/decline")
-    public ResponseEntity<TransactionResponse> decline(@PathVariable UUID id) {
-        return ResponseEntity.ok(transactionService.declineTransaction(id));
+    public ResponseEntity<TransactionResponse> decline(@PathVariable UUID id, Authentication auth) {
+        return ResponseEntity.ok(transactionService.declineTransaction(id, auth.getName()));
     }
 }

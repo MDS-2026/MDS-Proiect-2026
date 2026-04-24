@@ -6,6 +6,7 @@ import com.mdsproject.backend.exceptions.ResourceNotFoundException;
 import com.mdsproject.backend.models.Asset;
 import com.mdsproject.backend.models.FairPayGroup;
 import com.mdsproject.backend.models.enums.AssetType;
+import com.mdsproject.backend.models.enums.AuditAction;
 import com.mdsproject.backend.repositories.AssetRepository;
 import com.mdsproject.backend.repositories.FairPayGroupRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,8 +22,9 @@ public class AssetService {
 
     private final AssetRepository assetRepository;
     private final FairPayGroupRepository groupRepository;
+    private final AuditLogService auditLogService;
 
-    public AssetResponse addAsset(UUID groupId, CreateAssetRequest request) {
+    public AssetResponse addAsset(UUID groupId, CreateAssetRequest request, String email) {
         FairPayGroup group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group not found"));
 
@@ -33,6 +35,10 @@ public class AssetService {
         asset.setEstimatedEurValue(request.getEstimatedEurValue());
         asset.setExpiryDate(request.getExpiryDate());
         assetRepository.save(asset);
+
+        auditLogService.log(AuditAction.ASSET_ADDED, email, groupId, asset.getId(),
+                request.getType() + " asset from " + request.getProvider()
+                        + " worth €" + request.getEstimatedEurValue() + " added");
 
         return toResponse(asset);
     }
