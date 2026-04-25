@@ -48,7 +48,7 @@ export default function DashboardPage() {
     <div className="layout">
       <Sidebar />
       <main className="main">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="mb-24">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '64px' }} className="mb-24">
           <h1 className="page-title" style={{ marginBottom: 0 }}>Groups</h1>
           <div className="flex-gap">
             <button className="btn" onClick={() => setShowJoin(true)}>Join group</button>

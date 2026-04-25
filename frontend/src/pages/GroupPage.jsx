@@ -173,7 +173,7 @@ export default function GroupPage() {
     <div className="layout">
       <Sidebar />
       <main className="main">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }} className="mb-24">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingRight: '64px' }} className="mb-24">
           <button className="btn btn-sm" onClick={() => navigate('/')}>←</button>
           <h1 className="page-title" style={{ marginBottom: 0 }}>{group.name}</h1>
           <span className="invite-code" style={{ marginLeft: 8 }}>{group.inviteCode}</span>
