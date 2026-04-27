@@ -1,7 +1,6 @@
 package com.mdsproject.backend.dto.asset;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,8 +15,12 @@ public class CreateAssetRequest {
     @NotBlank
     private String provider;
 
-    @NotNull
+    // For non-cash assets the client may omit estimatedEurValue and provide amount/amountUnit
     private Double estimatedEurValue;
+
+    private Double amount;
+
+    private String amountUnit;
 
     private LocalDate expiryDate;
 }

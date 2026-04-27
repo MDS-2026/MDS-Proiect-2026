@@ -23,6 +23,8 @@ public class AssetService {
     private final AssetRepository assetRepository;
     private final FairPayGroupRepository groupRepository;
     private final AuditLogService auditLogService;
+    private final EstimationService estimationService;
+    private final GroupMembershipService groupMembershipService;
 
     public AssetResponse addAsset(UUID groupId, CreateAssetRequest request, String email) {
         FairPayGroup group = groupRepository.findById(groupId)
@@ -32,13 +34,27 @@ public class AssetService {
         asset.setGroup(group);
         asset.setType(AssetType.valueOf(request.getType()));
         asset.setProvider(request.getProvider());
-        asset.setEstimatedEurValue(request.getEstimatedEurValue());
+        asset.setAmount(request.getAmount());
+        asset.setAmountUnit(request.getAmountUnit());
+
+        // Compute estimated EUR for non-cash assets if not provided
+        Double estimated = request.getEstimatedEurValue();
+        if (asset.getType() != AssetType.CASH && estimated == null) {
+            if (request.getAmount() == null) {
+                throw new com.mdsproject.backend.exceptions.BadRequestException("Amount is required for non-cash assets");
+            }
+            estimated = estimationService.estimateEurValue(asset.getType(), asset.getProvider(), request.getAmount());
+        }
+        asset.setEstimatedEurValue(estimated != null ? estimated : 0.0);
         asset.setExpiryDate(request.getExpiryDate());
         assetRepository.save(asset);
 
         auditLogService.log(AuditAction.ASSET_ADDED, email, groupId, asset.getId(),
                 request.getType() + " asset from " + request.getProvider()
-                        + " worth €" + request.getEstimatedEurValue() + " added");
+                        + " worth €" + asset.getEstimatedEurValue() + " added");
+
+        // Update member fairness score
+        groupMembershipService.incrementFairnessForUserInGroup(email, groupId, asset.getEstimatedEurValue());
 
         return toResponse(asset);
     }
@@ -55,6 +71,8 @@ public class AssetService {
                 asset.getType().name(),
                 asset.getProvider(),
                 asset.getEstimatedEurValue(),
+                asset.getAmount(),
+                asset.getAmountUnit(),
                 asset.getExpiryDate()
         );
     }

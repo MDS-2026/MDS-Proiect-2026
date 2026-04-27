@@ -27,6 +27,7 @@ public class GroupService {
     private final GroupMembershipRepository membershipRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+        private final com.mdsproject.backend.repositories.AssetRepository assetRepository;
 
     @Transactional
     public GroupResponse createGroup(String email, CreateGroupRequest request) {
@@ -133,7 +134,12 @@ public class GroupService {
                 ))
                 .collect(Collectors.toList());
 
-        return new GroupResponse(group.getId(), group.getName(), group.getInviteCode(), members);
+        // Compute total purchasing power from assets
+        double total = assetRepository.findByGroupId(group.getId()).stream()
+                .mapToDouble(a -> a.getEstimatedEurValue() == null ? 0.0 : a.getEstimatedEurValue())
+                .sum();
+
+        return new GroupResponse(group.getId(), group.getName(), group.getInviteCode(), total, members);
     }
 
     private String generateInviteCode() {

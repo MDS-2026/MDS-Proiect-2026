@@ -26,6 +26,11 @@ public class Asset extends BaseEntity {
     @Column(nullable = false)
     private String provider;
 
+    // For non-cash assets: amount in provider-specific units (e.g., miles, voucher value)
+    private Double amount;
+
+    private String amountUnit;
+
     @Column(nullable = false)
     private Double estimatedEurValue;
 

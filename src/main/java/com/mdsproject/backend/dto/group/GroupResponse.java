@@ -16,5 +16,6 @@ public class GroupResponse {
     private UUID id;
     private String name;
     private String inviteCode;
+    private Double totalPurchasingPower;
     private List<MemberResponse> members;
 }

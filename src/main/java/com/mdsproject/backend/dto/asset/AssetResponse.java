@@ -17,5 +17,7 @@ public class AssetResponse {
     private String type;
     private String provider;
     private Double estimatedEurValue;
+    private Double amount;
+    private String amountUnit;
     private LocalDate expiryDate;
 }
