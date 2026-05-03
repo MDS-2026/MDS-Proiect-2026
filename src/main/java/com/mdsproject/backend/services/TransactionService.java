@@ -2,6 +2,8 @@ package com.mdsproject.backend.services;
 
 import com.mdsproject.backend.dto.transaction.CreateTransactionRequest;
 import com.mdsproject.backend.dto.transaction.TransactionResponse;
+import com.mdsproject.backend.dto.transaction.ValidateTransactionRequest;
+import com.mdsproject.backend.dto.transaction.ValidateTransactionResponse;
 import com.mdsproject.backend.exceptions.ResourceNotFoundException;
 import com.mdsproject.backend.models.Transaction;
 import com.mdsproject.backend.models.Wallet;
@@ -24,6 +26,7 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final WalletRepository walletRepository;
     private final AuditLogService auditLogService;
+    private final AiValidationService aiValidationService;
 
     @Transactional
     public TransactionResponse createTransaction(UUID walletId, CreateTransactionRequest request, String email) {
@@ -63,6 +66,25 @@ public class TransactionService {
         return transactionRepository.findByWalletGroupId(groupId).stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    public ValidateTransactionResponse validateTransaction(ValidateTransactionRequest request, String email) {
+        Wallet wallet = walletRepository.findById(request.getWalletId())
+                .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
+
+        boolean valid = aiValidationService.validateTransaction(
+                wallet,
+                request.getMerchant(),
+                request.getCategory(),
+                request.getAmount(),
+                email
+        );
+
+        String reason = valid
+                ? "Transaction matches wallet purpose"
+                : aiValidationService.getValidationReason(wallet, request.getMerchant(), request.getCategory());
+
+        return new ValidateTransactionResponse(valid, reason);
     }
 
     @Transactional

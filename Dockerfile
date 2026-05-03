@@ -7,7 +7,8 @@ COPY mvnw pom.xml ./
 RUN chmod +x ./mvnw
 RUN ./mvnw dependency:go-offline
 COPY src ./src
-RUN ./mvnw clean package -DskipTests
+# Skip incremental compilation to avoid "hashes is null" error
+RUN ./mvnw clean package -DskipTests -Dorg.slf4j.simpleLogger.defaultLogLevel=warn
 
 # Run stage
 FROM eclipse-temurin:17-jre-alpine

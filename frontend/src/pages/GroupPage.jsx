@@ -42,6 +42,7 @@ export default function GroupPage() {
   const [txAmount, setTxAmount] = useState('');
   const [txMerchant, setTxMerchant] = useState('');
   const [txCategory, setTxCategory] = useState('');
+  const [txAiValidation, setTxAiValidation] = useState(null);
 
   useEffect(() => { loadAll(); }, [id]);
 
@@ -100,6 +101,14 @@ export default function GroupPage() {
   const handleCreateTx = async (e) => {
     e.preventDefault();
     try {
+      const validation = await api.validateTransaction({
+        walletId: txWalletId,
+        amount: parseFloat(txAmount),
+        merchant: txMerchant,
+        category: txCategory,
+      });
+      setTxAiValidation(validation);
+
       await api.createTransaction(txWalletId, {
         amount: parseFloat(txAmount),
         merchant: txMerchant,
@@ -107,6 +116,7 @@ export default function GroupPage() {
       });
       setShowTxModal(false);
       setTxAmount(''); setTxMerchant(''); setTxCategory('');
+      setTxAiValidation(null);
       loadAll();
     } catch (err) { setError(err.message); }
   };
@@ -296,7 +306,7 @@ export default function GroupPage() {
             <div className="table-section card">
               <div className="table-header">
                 <div className="table-title">Transactions</div>
-                <button className="btn btn-sm" onClick={() => { setTxWalletId(wallets[0]?.id || ''); setShowTxModal(true); }}>+ New</button>
+                <button className="btn btn-sm" onClick={() => { setTxWalletId(wallets[0]?.id || ''); setTxAiValidation(null); setShowTxModal(true); }}>+ New</button>
               </div>
               {transactions.length === 0 ? <div className="empty">No transactions</div> : (
                 <table className="data-table">
@@ -471,7 +481,7 @@ export default function GroupPage() {
 
         {/* Create Transaction Modal */}
         {showTxModal && (
-          <Modal title="New transaction" onClose={() => setShowTxModal(false)}>
+          <Modal title="New transaction" onClose={() => { setTxAiValidation(null); setShowTxModal(false); }}>
             <form onSubmit={handleCreateTx}>
               <div className="form-group">
                 <label className="form-label">Wallet</label>
@@ -491,8 +501,23 @@ export default function GroupPage() {
                 <label className="form-label">Category</label>
                 <input className="form-input" value={txCategory} onChange={e => setTxCategory(e.target.value)} />
               </div>
+              {txAiValidation && (
+                <div
+                  className="mb-12"
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    background: txAiValidation.valid ? 'rgba(22, 163, 74, 0.12)' : 'rgba(220, 38, 38, 0.12)',
+                    border: `1px solid ${txAiValidation.valid ? 'rgba(22, 163, 74, 0.35)' : 'rgba(220, 38, 38, 0.35)'}`,
+                    color: txAiValidation.valid ? '#16a34a' : '#dc2626',
+                    fontSize: 13,
+                  }}
+                >
+                  AI validation: {txAiValidation.reason}
+                </div>
+              )}
               <div className="modal-actions">
-                <button type="button" className="btn" onClick={() => setShowTxModal(false)}>Cancel</button>
+                <button type="button" className="btn" onClick={() => { setTxAiValidation(null); setShowTxModal(false); }}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Submit</button>
               </div>
             </form>

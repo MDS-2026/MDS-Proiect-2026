@@ -68,6 +68,8 @@ const api = {
   getGroupTransactions: (groupId) => request(`/groups/${groupId}/transactions`),
   createTransaction: (walletId, data) =>
     request(`/wallets/${walletId}/transactions`, { method: 'POST', body: JSON.stringify(data) }),
+  validateTransaction: (data) =>
+    request('/transactions/validate', { method: 'POST', body: JSON.stringify(data) }),
   approveTransaction: (id) =>
     request(`/transactions/${id}/approve`, { method: 'PATCH' }),
   declineTransaction: (id) =>

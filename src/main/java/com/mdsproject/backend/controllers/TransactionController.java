@@ -2,6 +2,8 @@ package com.mdsproject.backend.controllers;
 
 import com.mdsproject.backend.dto.transaction.CreateTransactionRequest;
 import com.mdsproject.backend.dto.transaction.TransactionResponse;
+import com.mdsproject.backend.dto.transaction.ValidateTransactionRequest;
+import com.mdsproject.backend.dto.transaction.ValidateTransactionResponse;
 import com.mdsproject.backend.services.TransactionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,12 @@ public class TransactionController {
     @GetMapping("/api/groups/{groupId}/transactions")
     public ResponseEntity<List<TransactionResponse>> getGroupTransactions(@PathVariable UUID groupId) {
         return ResponseEntity.ok(transactionService.getGroupTransactions(groupId));
+    }
+
+    @PostMapping("/api/transactions/validate")
+    public ResponseEntity<ValidateTransactionResponse> validateTransaction(@Valid @RequestBody ValidateTransactionRequest request,
+                                                                           Authentication auth) {
+        return ResponseEntity.ok(transactionService.validateTransaction(request, auth.getName()));
     }
 
     @PatchMapping("/api/transactions/{id}/approve")
