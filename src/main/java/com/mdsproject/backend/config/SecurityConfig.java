@@ -62,6 +62,7 @@ public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Excepti
             .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() 
             // Your existing rules:
             .requestMatchers("/api/auth/**", "/actuator/**", "/health").permitAll()
+            .requestMatchers("/ws/**").permitAll()
             .anyRequest().authenticated()
             .and()
             .addFilterBefore(new JwtAuthFilter(jwtService, customUserDetailsService), UsernamePasswordAuthenticationFilter.class);

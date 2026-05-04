@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
 import Sidebar from '../components/Sidebar';
 import Modal from '../components/Modal';
+import GroupChat from '../components/GroupChat';
 
 export default function GroupPage() {
   const { id } = useParams();
@@ -141,6 +142,7 @@ export default function GroupPage() {
     { key: 'tree', label: 'Tree Dashboard' },
     { key: 'cards', label: 'Virtual Cards' },
     { key: 'audit', label: 'Audit Log' },
+    { key: 'chat', label: '💬 Chat' },
   ];
 
   const renderTreeNode = (node, isRoot = false) => {
@@ -380,6 +382,10 @@ export default function GroupPage() {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'chat' && (
+          <GroupChat groupId={id} />
         )}
 
         {activeTab === 'audit' && (
