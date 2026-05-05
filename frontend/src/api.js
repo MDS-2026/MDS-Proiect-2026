@@ -78,6 +78,9 @@ const api = {
   declineTransaction: (id) =>
     request(`/transactions/${id}/decline`, { method: 'PATCH' }),
 
+  // Chat
+  getChatHistory: (groupId) => request(`/groups/${groupId}/chat`),
+
   // Audit Log
   getAuditLogs: (groupId) => request(`/groups/${groupId}/audit`),
 

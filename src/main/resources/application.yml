@@ -24,5 +24,24 @@ app:
     secret: fairpay-super-secret-key-that-is-at-least-256-bits-long-for-hmac
     expiration-ms: 86400000
 
+# AI Transaction Validator Configuration
+ai:
+  # AI Service endpoint URL (e.g., https://api.openai.com/v1/completions or your custom service)
+  # We will use Gemini AI Studio, free tier endpoint
+  endpoint: ${AI_ENDPOINT:https://api.groq.com/openai/v1/chat/completions}
+  # API key/token for authentication (Bearer token)
+  api-key: ${AI_API_KEY:your_groq_api_key_here}
+  # Optional: timeout in milliseconds for AI service calls
+  timeout-ms: 5000
+  # Optional: whether to enable AI validation (set to false to use heuristic rules only)
+  enabled: true
+
 server:
   port: 8080
+
+logging:
+  level:
+    root: INFO
+    com.mdsproject.backend.services.AiValidationService: DEBUG
+  file:
+    name: logs/backend.log

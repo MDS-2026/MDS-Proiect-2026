@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
 import Sidebar from '../components/Sidebar';
 import Modal from '../components/Modal';
+import GroupChat from '../components/GroupChat';
 import CheckoutPreview from '../components/CheckoutPreview';
 
 export default function GroupPage() {
@@ -403,6 +404,10 @@ export default function GroupPage() {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'chat' && (
+          <GroupChat groupId={id} />
         )}
 
         {activeTab === 'audit' && (
