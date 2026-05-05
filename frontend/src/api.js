@@ -20,7 +20,7 @@ async function request(path, options = {}) {
 
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
 
-  if (res.status === 401) {
+  if (res.status === 401 || res.status === 403) {
     clearToken();
     window.location.href = '/login';
     return;
@@ -32,6 +32,9 @@ async function request(path, options = {}) {
 }
 
 const api = {
+  getToken,
+  setToken,
+  clearToken,
   // Auth
   register: (email, password) =>
     request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) }),

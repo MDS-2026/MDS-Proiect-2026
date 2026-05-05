@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api';
 import Sidebar from '../components/Sidebar';
 import Modal from '../components/Modal';
+import CheckoutPreview from '../components/CheckoutPreview';
 
 export default function GroupPage() {
   const { id } = useParams();
@@ -16,6 +17,9 @@ export default function GroupPage() {
   const [auditLogs, setAuditLogs] = useState([]);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
+
+  // preview state
+  const [previewWalletId, setPreviewWalletId] = useState(null);
 
   // Modal states
   const [showAssetModal, setShowAssetModal] = useState(false);
@@ -141,6 +145,7 @@ export default function GroupPage() {
     { key: 'tree', label: 'Tree Dashboard' },
     { key: 'cards', label: 'Virtual Cards' },
     { key: 'audit', label: 'Audit Log' },
+    { key: 'chat', label: 'Group Chat' },
   ];
 
   const renderTreeNode = (node, isRoot = false) => {
@@ -264,7 +269,7 @@ export default function GroupPage() {
               </div>
               {assets.length === 0 ? <div className="empty">No assets</div> : (
                 <table className="data-table">
-                  <thead><tr><th>Type</th><th>Provider</th><th>Value (EUR)</th><th>Expiry</th></tr></thead>
+                  <thead><tr><th>Type</th><th>Provider</th><th>Value (EUR)</th><th>Expiry</th><th>Actions</th></tr></thead>
                   <tbody>
                     {assets.map(a => (
                       <tr key={a.id}>
@@ -272,10 +277,28 @@ export default function GroupPage() {
                         <td>{a.provider}</td>
                         <td>€{a.estimatedEurValue.toFixed(2)}</td>
                         <td>{a.expiryDate || '—'}</td>
+                        <td>
+                          <button type="button" className="btn btn-sm" onClick={() => setPreviewWalletId(a.id)}>
+                            Preview split
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              )}
+
+              {/* Render preview card below assets table when a previewWalletId is selected */}
+              {previewWalletId && (
+                <div className="card mt-6">
+                  <div style={{ display:'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="table-title">Checkout split preview (Asset {previewWalletId})</div>
+                    <button type="button" className="btn btn-sm" onClick={() => setPreviewWalletId(null)}>Close</button>
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <CheckoutPreview walletId={previewWalletId} />
+                  </div>
+                </div>
               )}
             </div>
 
@@ -410,6 +433,10 @@ export default function GroupPage() {
               </table>
             )}
           </div>
+        )}
+
+        {activeTab === 'chat' && (
+          <GroupChat groupId={id} />
         )}
 
         {/* Add Asset Modal */}
