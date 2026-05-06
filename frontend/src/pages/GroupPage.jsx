@@ -406,9 +406,7 @@ export default function GroupPage() {
           </div>
         )}
 
-        {activeTab === 'chat' && (
-          <GroupChat groupId={id} />
-        )}
+     
 
         {activeTab === 'audit' && (
           <div className="table-section card">
