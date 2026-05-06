@@ -467,7 +467,13 @@ export default function GroupPage() {
                 <input className="form-input" type="date" value={assetExpiry} onChange={e => setAssetExpiry(e.target.value)} />
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn" onClick={() => setShowAssetModal(false)}>Cancel</button>
+                <button type="button" className="btn" onClick={() => {
+                    setShowAssetModal(false);
+                    setAssetProvider('');
+                    setAssetValue('');
+                    setAssetExpiry('');
+                    setAssetType('CASH');
+                }}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Add</button>
               </div>
             </form>
@@ -502,7 +508,14 @@ export default function GroupPage() {
                 <input className="form-input" type="number" step="0.01" value={walletThreshold} onChange={e => setWalletThreshold(e.target.value)} required />
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn" onClick={() => setShowWalletModal(false)}>Cancel</button>
+                <button type="button" className="btn" onClick={() => {
+                  setShowWalletModal(false);
+                  setWalletName('');
+                  setWalletParentId('');
+                  setWalletPurpose('');
+                  setWalletBudget('');
+                  setWalletThreshold('');
+                }}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Create</button>
               </div>
             </form>
