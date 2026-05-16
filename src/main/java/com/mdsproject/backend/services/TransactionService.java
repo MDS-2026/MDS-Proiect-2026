@@ -27,6 +27,7 @@ public class TransactionService {
     private final WalletRepository walletRepository;
     private final AuditLogService auditLogService;
     private final AiValidationService aiValidationService;
+    private final AlertService alertService;
 
     @Transactional
     public TransactionResponse createTransaction(UUID walletId, CreateTransactionRequest request, String email) {
@@ -52,6 +53,10 @@ public class TransactionService {
                 wallet.getGroup().getId(), tx.getId(),
                 "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
                         + " on wallet '" + wallet.getName() + "' — Status: " + tx.getStatus());
+
+        if (tx.getStatus() == TransactionStatus.PENDING) {
+            alertService.alertTransactionDeclined(tx, "New transaction pending approval: €" + tx.getAmount() + " at " + tx.getMerchant());
+        }
 
         return toResponse(tx);
     }
@@ -84,6 +89,17 @@ public class TransactionService {
                 ? "Transaction matches wallet purpose"
                 : aiValidationService.getValidationReason(wallet, request.getMerchant(), request.getCategory());
 
+        if (!valid) {
+            // ... (existing code for decline)
+            Transaction dummyTx = new Transaction();
+            dummyTx.setMerchant(request.getMerchant());
+            dummyTx.setAmount(request.getAmount());
+            dummyTx.setWallet(wallet);
+            alertService.alertTransactionDeclined(dummyTx, "AI Warning: " + reason);
+        } else {
+            alertService.sendGroupAlert(wallet.getGroup(), "AI Approved: Transaction of €" + request.getAmount() + " at " + request.getMerchant() + " matches wallet purpose.", "/groups/" + wallet.getGroup().getId());
+        }
+
         return new ValidateTransactionResponse(valid, reason);
     }
 
@@ -98,6 +114,8 @@ public class TransactionService {
                 tx.getWallet().getGroup().getId(), tx.getId(),
                 "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant() + " approved");
 
+        alertService.sendGroupAlert(tx.getWallet().getGroup(), "Transaction Approved: €" + tx.getAmount() + " at " + tx.getMerchant(), "/groups/" + tx.getWallet().getGroup().getId());
+
         return toResponse(tx);
     }
 
@@ -111,6 +129,9 @@ public class TransactionService {
         auditLogService.log(AuditAction.TRANSACTION_DECLINED, email,
                 tx.getWallet().getGroup().getId(), tx.getId(),
                 "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant() + " declined");
+
+        // Trigger notification for all group members
+        alertService.alertTransactionDeclined(tx, "Manually declined by administrator (" + email + ")");
 
         return toResponse(tx);
     }

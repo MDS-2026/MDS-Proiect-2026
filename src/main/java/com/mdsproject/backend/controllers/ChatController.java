@@ -11,6 +11,11 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+import com.mdsproject.backend.models.User;
+import com.mdsproject.backend.models.FairPayGroup;
+import com.mdsproject.backend.repositories.UserRepository;
+import com.mdsproject.backend.repositories.FairPayGroupRepository;
+import com.mdsproject.backend.services.AlertService;
 
 import java.security.Principal;
 import java.util.UUID;
@@ -21,6 +26,9 @@ public class ChatController {
 
     private final ChatMessageRepository chatMessageRepository;
     private final GroupMembershipRepository groupMembershipRepository;
+    private final UserRepository userRepository;
+    private final FairPayGroupRepository groupRepository;
+    private final AlertService alertService;
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -51,6 +59,13 @@ public class ChatController {
         msg.setSenderEmail(senderEmail);
         msg.setContent(request.getContent().trim());
         ChatMessage saved = chatMessageRepository.save(msg);
+
+        // Notify other group members via in-app notifications
+        User sender = userRepository.findByEmail(senderEmail).orElse(null);
+        FairPayGroup group = groupRepository.findById(groupId).orElse(null);
+        if (sender != null && group != null) {
+            alertService.sendChatNotification(group, sender, saved.getContent());
+        }
 
         // Broadcast to all subscribers of this group's chat topic
         ChatMessageDTO dto = new ChatMessageDTO(

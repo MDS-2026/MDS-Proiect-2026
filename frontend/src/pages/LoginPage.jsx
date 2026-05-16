@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -23,6 +24,7 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page">
+      <ThemeToggle />
       <div className="auth-box">
         <h1 className="auth-title">Sign in</h1>
         <p className="auth-sub">Enter your credentials to continue.</p>

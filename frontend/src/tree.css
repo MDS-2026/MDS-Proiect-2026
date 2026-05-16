@@ -1,75 +1,194 @@
-/* Tree Dashboard */
+/* Tree Dashboard - Horizontal Layout */
 .tree-container {
-  padding: 20px;
+  display: flex;
+  justify-content: center;
+  padding: 30px;
   overflow-x: auto;
+  position: relative;
+}
+
+/* Staggered entrance animation */
+@keyframes treeNodeEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .tree-node {
-  margin-left: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   position: relative;
+  padding: 40px 10px 0 10px;
+  animation: treeNodeEnter 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.tree-node::before {
+.tree-children {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  padding-top: 40px;
+}
+
+/* Vertical wire dropping from the parent to the horizontal distribution line */
+.tree-children::before {
   content: '';
   position: absolute;
-  top: -12px;
-  bottom: 0;
-  left: -12px;
-  width: 2px;
-  background: var(--border);
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 40px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+  z-index: 1;
 }
 
-.tree-node.root-node::before {
+/* Horizontal lines for children nodes */
+.tree-node::before, .tree-node::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 40px; /* drops down to the card */
+  border-top: 3px solid var(--accent);
+  z-index: 1;
+}
+
+/* Left side line */
+.tree-node::before {
+  right: 50%;
+}
+/* Right side line + central vertical drop */
+.tree-node::after {
+  left: 50%;
+  border-left: 3px solid var(--accent);
+  box-shadow: -2px 0 8px rgba(56, 189, 248, 0.3); /* subtle glow on drop */
+}
+
+/* Curve for the first child (comes from right, drops down) */
+.tree-node:first-child::before {
+  border-top: 0 none;
+}
+.tree-node:first-child::after {
+  border-top-left-radius: 20px;
+}
+
+/* Curve for the last child (comes from left, drops down) */
+.tree-node:last-child::after {
+  border-top: 0 none;
+  border-left: 0 none; /* the drop will be handled by ::before */
+}
+.tree-node:last-child::before {
+  border-right: 3px solid var(--accent);
+  border-top-right-radius: 20px;
+  box-shadow: 2px 0 8px rgba(56, 189, 248, 0.3);
+}
+
+/* Single child gets a straight drop down */
+.tree-node:only-child::after {
+  border-top: 0 none;
+  border-left: 3px solid var(--accent);
+  border-radius: 0;
+}
+.tree-node:only-child::before {
   display: none;
 }
 
+/* Root node has no wires above it */
+.tree-node.root-node {
+  padding-top: 0;
+}
+.tree-node.root-node::before, .tree-node.root-node::after {
+  display: none;
+}
+
+/* Premium Glassmorphic Card */
 .tree-card {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 16px 20px;
   position: relative;
   width: max-content;
-  min-width: 280px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  min-width: 260px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  z-index: 2; /* Keeps card above lines */
 }
 
-.tree-node:not(.root-node) .tree-card::after {
+.tree-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3), 0 0 20px rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Subtle inner glow */
+.tree-card::before {
   content: '';
   position: absolute;
-  top: 50%;
-  left: -12px;
-  width: 12px;
-  height: 2px;
-  background: var(--border);
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.1), transparent 60%);
+  pointer-events: none;
 }
 
+/* Header & Typography */
 .tree-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 12px;
+}
+
+.tree-card-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tree-card-icon {
+  font-size: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 2px rgba(255,255,255,0.1);
 }
 
 .tree-card-title {
   font-weight: 600;
-  font-size: 14px;
-  color: var(--accent);
+  font-size: 15px;
+  color: var(--text);
+  letter-spacing: 0.02em;
 }
 
 .tree-card-purpose {
   font-size: 11px;
-  color: var(--text-2);
+  color: var(--accent);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
+  font-weight: 600;
 }
 
 .tree-card-stats {
   display: flex;
-  gap: 16px;
+  gap: 24px;
 }
 
 .tree-stat {
@@ -80,23 +199,30 @@
 .tree-stat-label {
   font-size: 10px;
   color: var(--text-2);
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
 }
 
 .tree-stat-value {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
 }
 
+/* Glowing Progress Bar */
 .tree-progress {
   width: 100%;
-  height: 4px;
-  background: var(--bg);
-  border-radius: 2px;
-  margin-top: 12px;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  margin-top: 16px;
   overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
 }
 
 .tree-progress-bar {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 4px;
+  transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* Dynamic glow applied via style tag in component */

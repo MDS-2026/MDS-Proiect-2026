@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../api';
 
+import ThemeToggle from './ThemeToggle';
+
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,12 +73,16 @@ export default function Sidebar() {
       </nav>
       <div className="sidebar-bottom">
         <div className="sidebar-email">{email}</div>
-        <button
-          className="sidebar-link"
-          onClick={() => { api.clearToken(); window.location.href = '/login'; }}
-        >
-          Log out
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <ThemeToggle variant="sidebar" />
+          <button
+            className="sidebar-link"
+            style={{ color: 'var(--red)' }}
+            onClick={() => { api.clearToken(); window.location.href = '/login'; }}
+          >
+            Log out
+          </button>
+        </div>
       </div>
     </aside>
   );
