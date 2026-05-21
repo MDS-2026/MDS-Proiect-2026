@@ -85,17 +85,23 @@ public class AiResourceAllocatorService {
             StringBuilder walletInfo = new StringBuilder();
             for (int i = 0; i < wallets.size(); i++) {
                 Wallet w = wallets.get(i);
-                walletInfo.append(String.format("[%d] Name: %s, Purpose: %s\n", i, w.getName(), w.getPurpose()));
+                walletInfo.append(String.format("[%d] Name: %s, Purpose: %s, Budget Limit: %.2f\n", i, w.getName(), w.getPurpose(), w.getBudgetLimit()));
             }
+
+            String expiryInfo = asset.getExpiryDate() != null 
+                ? String.format("Expires in %d days. (Urgent if < 30 days).", java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(), asset.getExpiryDate()))
+                : "No expiration date.";
 
             String prompt = String.format(
                 "You are an AI Resource Allocator for a shared finance app. " +
-                "New Asset: Type=%s, Provider=%s, Amount=%.2f %s. " +
+                "New Asset: Type=%s, Provider=%s, Amount=%.2f %s. %s " +
                 "Available Wallets:\n%s" +
                 "Task: Select the most appropriate wallet index for this asset. " +
+                "Rules: Match the semantic domain of the provider to the wallet purpose. " +
+                "If the asset expires urgently, favor active wallets with high budgets. " +
                 "If no wallet matches well, return -1. " +
                 "Answer ONLY with the index number.",
-                asset.getType(), asset.getProvider(), asset.getAmount(), asset.getAmountUnit(), walletInfo.toString()
+                asset.getType(), asset.getProvider(), asset.getAmount(), asset.getAmountUnit(), expiryInfo, walletInfo.toString()
             );
 
             Map<String, Object> message = new HashMap<>();
