@@ -25,6 +25,8 @@ public class AssetService {
     private final AuditLogService auditLogService;
     private final EstimationService estimationService;
     private final GroupMembershipService groupMembershipService;
+    private final AiResourceAllocatorService allocatorService;
+    private final com.mdsproject.backend.repositories.WalletRepository walletRepository;
 
     public AssetResponse addAsset(UUID groupId, CreateAssetRequest request, String email) {
         FairPayGroup group = groupRepository.findById(groupId)
@@ -56,6 +58,18 @@ public class AssetService {
         // Update member fairness score
         groupMembershipService.incrementFairnessForUserInGroup(email, groupId, asset.getEstimatedEurValue());
 
+        // AI Resource Allocation
+        List<Wallet> groupWallets = walletRepository.findByGroupId(groupId);
+        allocatorService.allocateAsset(asset, groupWallets).ifPresent(wallet -> {
+            asset.setWallet(wallet);
+            assetRepository.save(asset);
+            auditLogService.log(AuditAction.RESOURCE_ALLOCATED, "AI_SYSTEM", groupId, asset.getId(),
+                    "AI allocated " + asset.getType() + " to wallet: " + wallet.getName());
+        });
+
+        // Trigger budget rebalancing check
+        allocatorService.rebalanceCardLimits(group, groupWallets);
+
         return toResponse(asset);
     }
 
@@ -73,7 +87,9 @@ public class AssetService {
                 asset.getEstimatedEurValue(),
                 asset.getAmount(),
                 asset.getAmountUnit(),
-                asset.getExpiryDate()
+                asset.getExpiryDate(),
+                asset.getWallet() != null ? asset.getWallet().getId() : null,
+                asset.getWallet() != null ? asset.getWallet().getName() : null
         );
     }
 }

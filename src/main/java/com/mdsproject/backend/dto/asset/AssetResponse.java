@@ -20,4 +20,6 @@ public class AssetResponse {
     private Double amount;
     private String amountUnit;
     private LocalDate expiryDate;
+    private UUID walletId;
+    private String walletName;
 }
