@@ -35,4 +35,8 @@ public class Asset extends BaseEntity {
     private Double estimatedEurValue;
 
     private LocalDate expiryDate;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "wallet_id")
+    private Wallet wallet;
 }

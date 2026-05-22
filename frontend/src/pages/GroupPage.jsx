@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar';
 import Modal from '../components/Modal';
 import GroupChat from '../components/GroupChat';
 import CheckoutPreview from '../components/CheckoutPreview';
+import NotificationBell from '../components/NotificationBell';
 
 export default function GroupPage() {
   const { id } = useParams();
@@ -138,6 +139,14 @@ export default function GroupPage() {
       setWalletBudget('');
       setWalletThreshold('');
       loadAll();
+
+      // Small delay to show the AI result before closing
+      setTimeout(() => {
+        setShowTxModal(false);
+        setTxAmount(''); setTxMerchant(''); setTxCategory('');
+        setTxAiValidation(null);
+        loadAll();
+      }, 1500);
     } catch (err) {
       setError(err.message);
     }
@@ -166,16 +175,33 @@ export default function GroupPage() {
     { key: 'chat', label: 'Group Chat' },
   ];
 
-  const renderTreeNode = (node, isRoot = false) => {
+  const getIconForPurpose = (purpose) => {
+    const p = (purpose || '').toLowerCase();
+    if (p.includes('travel') || p.includes('flight')) return '✈️';
+    if (p.includes('food') || p.includes('grocer') || p.includes('restaurant')) return '🍔';
+    if (p.includes('entertain') || p.includes('party') || p.includes('fun')) return '🎉';
+    if (p.includes('transport') || p.includes('uber') || p.includes('taxi')) return '🚕';
+    if (p.includes('house') || p.includes('rent') || p.includes('util')) return '🏠';
+    return '💼';
+  };
+
+  const renderTreeNode = (node, isRoot = false, depth = 0) => {
     const percent = Math.min(100, (node.spentAmount / node.budgetLimit) * 100) || 0;
     const progressColor = percent > 90 ? 'var(--red)' : percent > 75 ? 'var(--yellow)' : 'var(--blue)';
+    const icon = getIconForPurpose(node.purpose);
+    const delay = depth * 0.15; // 150ms stagger per depth level
 
     return (
-      <div key={node.id} className={`tree-node ${isRoot ? 'root-node' : ''}`}>
+      <div key={node.id} className={`tree-node ${isRoot ? 'root-node' : ''}`} style={{ animationDelay: `${delay}s` }}>
         <div className="tree-card">
           <div className="tree-card-header">
-            <span className="tree-card-title">{node.name}</span>
-            <span className="tree-card-purpose">{node.purpose || 'General'}</span>
+            <div className="tree-card-title-wrap">
+              <div className="tree-card-icon">{icon}</div>
+              <div>
+                <div className="tree-card-title">{node.name}</div>
+                <div className="tree-card-purpose">{node.purpose || 'General'}</div>
+              </div>
+            </div>
           </div>
           <div className="tree-card-stats">
             <div className="tree-stat">
@@ -188,12 +214,12 @@ export default function GroupPage() {
             </div>
           </div>
           <div className="tree-progress">
-            <div className="tree-progress-bar" style={{ width: `${percent}%`, backgroundColor: progressColor }}></div>
+            <div className="tree-progress-bar" style={{ width: `${percent}%`, backgroundColor: progressColor, boxShadow: `0 0 10px ${progressColor}80` }}></div>
           </div>
         </div>
         {node.children && node.children.length > 0 && (
           <div className="tree-children">
-            {node.children.map(child => renderTreeNode(child))}
+            {node.children.map(child => renderTreeNode(child, false, depth + 1))}
           </div>
         )}
       </div>
@@ -206,10 +232,13 @@ export default function GroupPage() {
     <div className="layout">
       <Sidebar />
       <main className="main">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingRight: '64px' }} className="mb-24">
-          <button className="btn btn-sm" onClick={() => navigate('/')}>←</button>
-          <h1 className="page-title" style={{ marginBottom: 0 }}>{group.name}</h1>
-          <span className="invite-code" style={{ marginLeft: 8 }}>{group.inviteCode}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="mb-24">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="btn btn-sm" onClick={() => navigate('/')}>←</button>
+            <h1 className="page-title" style={{ marginBottom: 0 }}>{group.name}</h1>
+            <span className="invite-code" style={{ marginLeft: 8 }}>{group.inviteCode}</span>
+          </div>
+          <NotificationBell />
         </div>
 
         {error && <div className="error mb-12">{error}</div>}
@@ -424,7 +453,14 @@ export default function GroupPage() {
             </div>
             {walletTree.length === 0 ? <div className="empty">No wallets yet.</div> : (
               <div className="tree-container">
-                {walletTree.map(root => renderTreeNode(root, true))}
+                {renderTreeNode({
+                  id: 'trip-root',
+                  name: group.name,
+                  purpose: 'TOTAL POOLED FUNDS',
+                  budgetLimit: totalPooled,
+                  spentAmount: walletTree.reduce((sum, node) => sum + node.spentAmount, 0),
+                  children: walletTree
+                }, true)}
               </div>
             )}
           </div>

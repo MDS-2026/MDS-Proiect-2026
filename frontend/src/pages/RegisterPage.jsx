@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -23,6 +24,7 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-page">
+      <ThemeToggle />
       <div className="auth-box">
         <h1 className="auth-title">Create account</h1>
         <p className="auth-sub">Get started with FairPay.</p>

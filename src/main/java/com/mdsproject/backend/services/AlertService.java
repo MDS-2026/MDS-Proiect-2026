@@ -1,9 +1,11 @@
 package com.mdsproject.backend.services;
 
 import com.mdsproject.backend.models.FairPayGroup;
+import com.mdsproject.backend.models.Notification;
 import com.mdsproject.backend.models.Transaction;
 import com.mdsproject.backend.models.User;
 import com.mdsproject.backend.repositories.GroupMembershipRepository;
+import com.mdsproject.backend.repositories.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import java.util.stream.Collectors;
 public class AlertService {
 
     private final GroupMembershipRepository groupMembershipRepository;
+    private final NotificationRepository notificationRepository;
 
     /**
      * Send alert to all group members when a transaction is declined due to merchant mismatch.
@@ -24,35 +27,39 @@ public class AlertService {
      */
     public void alertTransactionDeclined(Transaction transaction, String reason) {
         FairPayGroup group = transaction.getWallet().getGroup();
-        
-        // Fetch all group members
-        List<User> members = groupMembershipRepository.findByGroupId(group.getId())
-                .stream()
-                .map(m -> m.getUser())
-                .collect(Collectors.toList());
-
         String alertMessage = String.format(
                 "Transaction Declined: €%.2f at '%s' on wallet '%s' — Reason: %s",
-                transaction.getAmount(),
-                transaction.getMerchant(),
-                transaction.getWallet().getName(),
-                reason
+                transaction.getAmount(), transaction.getMerchant(), transaction.getWallet().getName(), reason
         );
+        sendGroupAlert(group, alertMessage, "/groups/" + group.getId());
+    }
 
-        log.warn("ALERT for group '{}': {}", group.getName(), alertMessage);
-
-        // Send notification to each member
-        // TODO: In production, integrate with notification service (email, SMS, in-app, etc.)
+    public void sendGroupAlert(FairPayGroup group, String message, String targetUrl) {
+        List<User> members = groupMembershipRepository.findByGroupId(group.getId())
+                .stream().map(m -> m.getUser()).collect(Collectors.toList());
         for (User member : members) {
-            sendNotificationToMember(member, alertMessage, transaction, group);
+            sendNotificationToMember(member, message, group, targetUrl);
         }
     }
 
-    private void sendNotificationToMember(User member, String alertMessage, Transaction transaction, FairPayGroup group) {
-        log.info("Sending alert to user '{}': {}", member.getEmail(), alertMessage);
-        // TODO: Implement actual notification delivery
-        // - Send email via EmailService
-        // - Send push notification via PushService
-        // - Store as in-app Notification entity in database
+    public void sendChatNotification(FairPayGroup group, User sender, String text) {
+        List<User> members = groupMembershipRepository.findByGroupId(group.getId())
+                .stream().map(m -> m.getUser()).collect(Collectors.toList());
+        String msg = "New message from " + sender.getEmail() + " in " + group.getName();
+        for (User member : members) {
+            if (!member.getId().equals(sender.getId())) {
+                sendNotificationToMember(member, msg, group, "/groups/" + group.getId() + "?tab=chat");
+            }
+        }
+    }
+
+    private void sendNotificationToMember(User member, String alertMessage, FairPayGroup group, String targetUrl) {
+        Notification notification = new Notification();
+        notification.setUser(member);
+        notification.setGroup(group);
+        notification.setMessage(alertMessage);
+        notification.setTargetUrl(targetUrl);
+        notification.setRead(false);
+        notificationRepository.save(notification);
     }
 }

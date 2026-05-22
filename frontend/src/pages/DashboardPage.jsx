@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api';
 import Sidebar from '../components/Sidebar';
 import Modal from '../components/Modal';
+import NotificationBell from '../components/NotificationBell';
 
 export default function DashboardPage() {
   const [groups, setGroups] = useState([]);
@@ -48,9 +49,10 @@ export default function DashboardPage() {
     <div className="layout">
       <Sidebar />
       <main className="main">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: '64px' }} className="mb-24">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="mb-24">
           <h1 className="page-title" style={{ marginBottom: 0 }}>Groups</h1>
           <div className="flex-gap">
+            <NotificationBell />
             <button className="btn" onClick={() => setShowJoin(true)}>Join group</button>
             <button className="btn btn-primary" onClick={() => setShowCreate(true)}>New group</button>
           </div>

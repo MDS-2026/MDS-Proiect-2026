@@ -26,8 +26,15 @@ async function request(path, options = {}) {
     return;
   }
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Request failed');
+  const text = await res.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch (_) {
+    data = { message: text || 'Request failed' };
+  }
+
+  if (!res.ok) throw new Error(data?.message || data?.error || `Error ${res.status}`);
   return data;
 }
 
@@ -83,6 +90,10 @@ const api = {
 
   // Audit Log
   getAuditLogs: (groupId) => request(`/groups/${groupId}/audit`),
+
+  // Notifications
+  getNotifications: () => request('/notifications'),
+  markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PATCH' }),
 
   getToken,
   setToken,

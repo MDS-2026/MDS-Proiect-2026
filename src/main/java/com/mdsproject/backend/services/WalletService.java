@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.mdsproject.backend.services.AlertService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Random;
@@ -32,6 +33,7 @@ public class WalletService {
     private final FairPayGroupRepository groupRepository;
     private final VirtualCardRepository virtualCardRepository;
     private final AuditLogService auditLogService;
+    private final AlertService alertService;
     private final Random random = new Random();
 
     @Transactional
@@ -63,6 +65,8 @@ public class WalletService {
 
         auditLogService.log(AuditAction.VIRTUAL_CARD_GENERATED, email, groupId, wallet.getId(),
                 "Virtual card generated for wallet '" + wallet.getName() + "'");
+
+        alertService.sendGroupAlert(group, "New Wallet & Virtual Card: '" + wallet.getName() + "' has been activated.", "/groups/" + groupId);
 
         return toResponse(wallet);
     }
@@ -149,9 +153,31 @@ public class WalletService {
         StringBuilder sb = new StringBuilder();
         // Start with 4 (Visa-like prefix)
         sb.append("4");
-        for (int i = 1; i < 16; i++) {
+        // Generate 14 more random digits (total 15 digits)
+        for (int i = 1; i < 15; i++) {
             sb.append(random.nextInt(10));
         }
+        
+        // Calculate Luhn check digit (16th digit)
+        String partialCard = sb.toString();
+        int sum = 0;
+        boolean alternate = true; // starting from rightmost digit of the 15-digit string
+        
+        for (int i = partialCard.length() - 1; i >= 0; i--) {
+            int n = Character.getNumericValue(partialCard.charAt(i));
+            if (alternate) {
+                n *= 2;
+                if (n > 9) {
+                    n -= 9;
+                }
+            }
+            sum += n;
+            alternate = !alternate;
+        }
+        
+        int checkDigit = (10 - (sum % 10)) % 10;
+        sb.append(checkDigit);
+        
         return sb.toString();
     }
 
