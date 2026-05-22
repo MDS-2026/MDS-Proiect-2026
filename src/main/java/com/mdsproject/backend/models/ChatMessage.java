@@ -22,4 +22,6 @@ public class ChatMessage extends BaseEntity {
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
+
+   
 }
