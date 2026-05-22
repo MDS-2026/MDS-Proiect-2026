@@ -21,4 +21,14 @@ public class TransactionResponse {
     private UUID walletId;
     private String walletName;
     private LocalDateTime createdAt;
+
+    /**
+     * Populated only when {@code status} is {@code PENDING_GROUP_APPROVAL}: total members who must approve.
+     */
+    private Integer groupConsensusRequired;
+
+    /**
+     * Populated only when {@code status} is {@code PENDING_GROUP_APPROVAL}: how many members have approved so far.
+     */
+    private Integer groupConsensusApproved;
 }
