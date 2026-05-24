@@ -17,12 +17,57 @@ export default function Sidebar() {
         .then(data => setGroups(data))
         .catch(err => console.error("Failed to load groups for sidebar", err));
     }
+
+    // Initialize sidebar collapsed state on mount
+    const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+    if (isCollapsed) {
+      document.body.classList.add('sidebar-collapsed');
+    } else {
+      document.body.classList.remove('sidebar-collapsed');
+    }
   }, []);
 
+  const toggleSidebar = () => {
+    const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
+    localStorage.setItem('sidebar_collapsed', isCollapsed);
+  };
+
   return (
-    <aside className="sidebar">
-      <div className="sidebar-logo">FairPay</div>
-      <nav className="sidebar-nav">
+    <>
+      <button 
+        className="sidebar-toggle-floating"
+        onClick={toggleSidebar}
+        title="Show Sidebar"
+      >
+        ☰
+      </button>
+      <aside className="sidebar">
+        <div className="sidebar-logo" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>FairPay</span>
+          <button
+            onClick={toggleSidebar}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-2)',
+              cursor: 'pointer',
+              fontSize: '15px',
+              fontWeight: '600',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.15s'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-input)'; e.currentTarget.style.color = 'var(--accent)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--text-2)'; }}
+            title="Collapse Sidebar"
+          >
+            ⟨
+          </button>
+        </div>
+        <nav className="sidebar-nav">
         <button
           className={`sidebar-link ${location.pathname === '/' ? 'active' : ''}`}
           onClick={() => navigate('/')}
@@ -85,5 +130,6 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }

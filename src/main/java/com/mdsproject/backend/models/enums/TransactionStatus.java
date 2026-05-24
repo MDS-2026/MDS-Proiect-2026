@@ -5,5 +5,6 @@ public enum TransactionStatus {
     /** AI rejected (or AI unavailable); every group member must approve before the transaction is approved. */
     PENDING_GROUP_APPROVAL,
     APPROVED,
-    DECLINED
+    DECLINED,
+    PENDING_MANUAL_APPROVAL
 }

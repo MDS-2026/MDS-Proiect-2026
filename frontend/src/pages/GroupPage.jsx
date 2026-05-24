@@ -167,11 +167,16 @@ export default function GroupPage() {
 
   const totalPooled = assets.reduce((sum, a) => sum + a.estimatedEurValue, 0);
 
+  const currentEmail = localStorage.getItem('fairpay_email') || '';
+  const currentMember = group?.members?.find(m => m.email === currentEmail);
+  const isAdmin = currentMember?.role === 'ADMIN';
+  const adminCount = group?.members?.filter(m => m.role === 'ADMIN').length || 0;
+
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'tree', label: 'Tree Dashboard' },
     { key: 'cards', label: 'Virtual Cards' },
-    { key: 'audit', label: 'Audit Log' },
+    ...(isAdmin ? [{ key: 'audit', label: 'Audit Log' }] : []),
     { key: 'chat', label: 'Group Chat' },
   ];
 
@@ -287,23 +292,36 @@ export default function GroupPage() {
                 <div className="table-title">Members</div>
               </div>
               <table className="data-table">
-                <thead><tr><th>Email</th><th>Role</th><th>Fairness</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Email</th><th>Role</th><th>Fairness</th>{isAdmin && <th>Actions</th>}</tr></thead>
                 <tbody>
-                  {group.members?.map(m => (
-                    <tr key={m.userId}>
-                      <td>{m.email}</td>
-                      <td><span className={`badge badge-${m.role.toLowerCase()}`}>{m.role}</span></td>
-                      <td>{m.fairnessScore}</td>
-                      <td>
-                        <button
-                          className="btn btn-sm"
-                          onClick={() => handleChangeRole(m.userId, m.role)}
-                        >
-                          {m.role === 'ADMIN' ? 'Make Member' : 'Make Admin'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {group.members?.map(m => {
+                    const isSelf = m.email === currentEmail;
+                    const isLastAdmin = m.role === 'ADMIN' && adminCount <= 1;
+                    const canChangeRole = isAdmin && !(isSelf && isLastAdmin);
+                    return (
+                      <tr key={m.userId}>
+                        <td>{m.email}{isSelf && <span style={{ color: 'var(--text-2)', fontSize: 11, marginLeft: 6 }}>(you)</span>}</td>
+                        <td><span className={`badge badge-${m.role.toLowerCase()}`}>{m.role}</span></td>
+                        <td>{m.fairnessScore}</td>
+                        {isAdmin && (
+                          <td>
+                            {canChangeRole ? (
+                              <button
+                                className="btn btn-sm"
+                                onClick={() => handleChangeRole(m.userId, m.role)}
+                              >
+                                {m.role === 'ADMIN' ? 'Make Member' : 'Make Admin'}
+                              </button>
+                            ) : isSelf && isLastAdmin ? (
+                              <span style={{ fontSize: 11, color: 'var(--text-2)' }}>Last admin</span>
+                            ) : (
+                              <span style={{ fontSize: 11, color: 'var(--text-2)' }}>—</span>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -316,7 +334,7 @@ export default function GroupPage() {
               </div>
               {assets.length === 0 ? <div className="empty">No assets</div> : (
                 <table className="data-table">
-                  <thead><tr><th>Type</th><th>Provider</th><th>Value (EUR)</th><th>Expiry</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>Type</th><th>Provider</th><th>Value (EUR)</th><th>Expiry</th><th>Allocated Wallet</th><th>Actions</th></tr></thead>
                   <tbody>
                     {assets.map(a => (
                       <tr key={a.id}>
@@ -324,10 +342,17 @@ export default function GroupPage() {
                         <td>{a.provider}</td>
                         <td>€{a.estimatedEurValue.toFixed(2)}</td>
                         <td>{a.expiryDate || '—'}</td>
+                        <td style={{ color: 'var(--text-1)', fontWeight: 500 }}>
+                          {a.walletName ? `💼 ${a.walletName}` : '❌ Not allocated'}
+                        </td>
                         <td>
-                          <button type="button" className="btn btn-sm" onClick={() => setPreviewWalletId(a.id)}>
-                            Preview split
-                          </button>
+                          {a.walletId ? (
+                            <button type="button" className="btn btn-sm" onClick={() => setPreviewWalletId(a.walletId)}>
+                              Preview split
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Not allocated</span>
+                          )}
                         </td>
                       </tr>
                     ))}

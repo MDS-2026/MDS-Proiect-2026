@@ -99,6 +99,17 @@ public class GroupService {
 
         Role newRole = Role.valueOf(request.getRole().toUpperCase());
         Role oldRole = targetMembership.getRole();
+
+        // Prevent demoting the last admin
+        if (oldRole == Role.ADMIN && newRole != Role.ADMIN) {
+            long adminCount = membershipRepository.findByGroupId(groupId).stream()
+                    .filter(m -> m.getRole() == Role.ADMIN)
+                    .count();
+            if (adminCount <= 1) {
+                throw new BadRequestException("Cannot demote the last admin. Promote another member first.");
+            }
+        }
+
         targetMembership.setRole(newRole);
         membershipRepository.save(targetMembership);
 
