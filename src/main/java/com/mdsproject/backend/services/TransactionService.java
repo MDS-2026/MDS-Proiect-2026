@@ -61,21 +61,28 @@ public class TransactionService {
             );
 
             if (!valid) {
-                tx.setStatus(TransactionStatus.DECLINED);
+                // AI mismatch: trimite la aprobare de grup, nu DECLINED
+                tx.setStatus(TransactionStatus.PENDING_GROUP_APPROVAL);
                 transactionRepository.save(tx);
 
                 String reason = aiValidationService.getValidationReason(wallet, request.getMerchant(), request.getCategory());
-                alertService.alertTransactionDeclined(tx, "AI Warning: " + reason);
+                alertService.alertTransactionDeclined(tx, "AI Warning: " + reason + " — Group approval required");
 
-                auditLogService.log(AuditAction.TRANSACTION_DECLINED, email,
+                auditLogService.log(AuditAction.TRANSACTION_CREATED, email,
                         wallet.getGroup().getId(), tx.getId(),
                         "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
-                                + " on wallet '" + wallet.getName() + "' declined by AI — Reason: " + reason);
+                                + " on wallet '" + wallet.getName() + "' — Status: PENDING_GROUP_APPROVAL (AI mismatch: " + reason + ")");
+
+                int n = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
+                String memberSummary = buildMemberEmailSummary(wallet.getGroup().getId());
+                auditLogService.log(AuditAction.TRANSACTION_GROUP_CONSENSUS_REQUESTED, email,
+                        wallet.getGroup().getId(), tx.getId(),
+                        "Approval requests sent to all " + n + " group member(s) for this transaction. " + memberSummary);
 
                 return toResponse(tx);
             }
 
-            // Auto-approve if amount is within threshold
+            // Auto-approve dacă suma e sub prag
             if (request.getAmount() <= wallet.getAutoApproveThreshold()) {
                 tx.setStatus(TransactionStatus.APPROVED);
             } else {
