@@ -52,6 +52,13 @@ export default function GroupPage() {
 
   useEffect(() => { loadAll(); }, [id]);
 
+  // Ensure the transaction modal has a default wallet selected when opened
+  useEffect(() => {
+    if (showTxModal && wallets.length > 0 && !txWalletId) {
+      setTxWalletId(wallets[0].id);
+    }
+  }, [showTxModal, wallets, txWalletId]);
+
   const loadAll = async () => {
     try {
       const [g, a, w, tree, t, cards, logs] = await Promise.all([
@@ -88,6 +95,33 @@ export default function GroupPage() {
     } catch (err) { setError(err.message); }
   };
 
+  const handleCreateTx = async (e) => {
+    e.preventDefault();
+    console.log('handleCreateTx called', { txWalletId, txAmount, txMerchant, txCategory });
+    try {
+      const validation = await api.validateTransaction({
+        walletId: txWalletId,
+        amount: parseFloat(txAmount),
+        merchant: txMerchant,
+        category: txCategory,
+      });
+      console.log('AI validation result', validation);
+      setTxAiValidation(validation);
+
+      const txResult = await api.createTransaction(txWalletId, {
+        amount: parseFloat(txAmount),
+        merchant: txMerchant,
+        category: txCategory,
+      });
+      console.log('Transaction created', txResult);
+      setShowTxModal(false);
+      setTxAmount(''); setTxMerchant(''); setTxCategory(''); setTxAiValidation(null);
+      loadAll();
+    } catch (err) {
+      console.error('Transaction error', err);
+      setError(err.message);
+    }
+  };
   const handleCreateWallet = async (e) => {
     e.preventDefault();
     try {
@@ -99,34 +133,12 @@ export default function GroupPage() {
         parentWalletId: walletParentId || null,
       });
       setShowWalletModal(false);
-      setWalletName(''); setWalletPurpose(''); setWalletBudget(''); setWalletThreshold(''); setWalletParentId('');
+      setWalletName('');
+      setWalletParentId('');
+      setWalletPurpose('');
+      setWalletBudget('');
+      setWalletThreshold('');
       loadAll();
-    } catch (err) { setError(err.message); }
-  };
-
-  const handleCreateTx = async (e) => {
-    e.preventDefault();
-    setError('');
-    try {
-      // Run AI validation first (non-blocking — errors here shouldn't stop the transaction)
-      try {
-        const validation = await api.validateTransaction({
-          walletId: txWalletId,
-          amount: parseFloat(txAmount),
-          merchant: txMerchant,
-          category: txCategory,
-        });
-        setTxAiValidation(validation);
-      } catch (_) {
-        // AI validation failed — still allow transaction, backend will handle as PENDING_MANUAL_APPROVAL
-        setTxAiValidation({ valid: null, reason: 'AI validation unavailable — transaction will be reviewed manually.' });
-      }
-
-      await api.createTransaction(txWalletId, {
-        amount: parseFloat(txAmount),
-        merchant: txMerchant,
-        category: txCategory,
-      });
 
       // Small delay to show the AI result before closing
       setTimeout(() => {
@@ -401,9 +413,16 @@ export default function GroupPage() {
                         <td style={{ color: 'var(--text-2)' }}>{tx.category || '—'}</td>
                         <td>€{tx.amount.toFixed(2)}</td>
                         <td style={{ color: 'var(--text-2)' }}>{tx.walletName}</td>
-                        <td><span className={`badge badge-${tx.status.toLowerCase()}`}>{tx.status}</span></td>
                         <td>
-                          {tx.status === 'PENDING' && (
+                          <span className={`badge badge-${txStatusBadgeClass(tx.status)}`}>{tx.status}</span>
+                          {tx.status === 'PENDING_GROUP_APPROVAL' && tx.groupConsensusRequired != null && (
+                            <div className="stat-sub" style={{ marginTop: 6 }}>
+                              Group approvals: {tx.groupConsensusApproved ?? 0}/{tx.groupConsensusRequired} (all must approve)
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          {(tx.status === 'PENDING' || tx.status === 'PENDING_GROUP_APPROVAL') && (
                             <div className="flex-gap">
                               <button className="btn btn-sm" onClick={async () => { await api.approveTransaction(tx.id); loadAll(); }}>Approve</button>
                               <button className="btn btn-sm btn-danger" onClick={async () => { await api.declineTransaction(tx.id); loadAll(); }}>Decline</button>
@@ -666,11 +685,17 @@ export default function GroupPage() {
   );
 }
 
+function txStatusBadgeClass(status) {
+  if (status === 'PENDING_GROUP_APPROVAL') return 'pending';
+  return status.toLowerCase();
+}
+
 function getAuditBadgeColor(action) {
   if (action.includes('APPROVED')) return 'approved';
   if (action.includes('DECLINED')) return 'declined';
   if (action.includes('CREATED') || action.includes('JOINED') || action.includes('GENERATED')) return 'admin';
   if (action.includes('CHANGED')) return 'pending';
+  if (action.includes('CONSENSUS')) return 'pending';
   return 'member';
 }
 
