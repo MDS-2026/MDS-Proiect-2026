@@ -40,11 +40,49 @@ public class TransactionService {
         tx.setCategory(request.getCategory());
         tx.setWallet(wallet);
 
-        // Auto-approve if amount is within threshold
-        if (request.getAmount() <= wallet.getAutoApproveThreshold()) {
-            tx.setStatus(TransactionStatus.APPROVED);
-        } else {
-            tx.setStatus(TransactionStatus.PENDING);
+        try {
+            boolean valid = aiValidationService.validateTransaction(
+                    wallet,
+                    request.getMerchant(),
+                    request.getCategory(),
+                    request.getAmount(),
+                    email
+            );
+
+            if (!valid) {
+                tx.setStatus(TransactionStatus.DECLINED);
+                transactionRepository.save(tx);
+
+                String reason = aiValidationService.getValidationReason(wallet, request.getMerchant(), request.getCategory());
+                alertService.alertTransactionDeclined(tx, "AI Warning: " + reason);
+
+                auditLogService.log(AuditAction.TRANSACTION_DECLINED, email,
+                        wallet.getGroup().getId(), tx.getId(),
+                        "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
+                                + " on wallet '" + wallet.getName() + "' declined by AI — Reason: " + reason);
+
+                return toResponse(tx);
+            }
+
+            // Auto-approve if amount is within threshold
+            if (request.getAmount() <= wallet.getAutoApproveThreshold()) {
+                tx.setStatus(TransactionStatus.APPROVED);
+            } else {
+                tx.setStatus(TransactionStatus.PENDING);
+            }
+
+        } catch (Exception e) {
+            tx.setStatus(TransactionStatus.PENDING_MANUAL_APPROVAL);
+            transactionRepository.save(tx);
+
+            alertService.alertTransactionDeclined(tx, "AI validation unavailable — Awaiting manual approval");
+
+            auditLogService.log(AuditAction.TRANSACTION_CREATED, email,
+                    wallet.getGroup().getId(), tx.getId(),
+                    "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
+                            + " on wallet '" + wallet.getName() + "' set to PENDING_MANUAL_APPROVAL (AI system error)");
+
+            return toResponse(tx);
         }
 
         transactionRepository.save(tx);

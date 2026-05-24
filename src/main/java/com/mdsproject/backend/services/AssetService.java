@@ -5,6 +5,7 @@ import com.mdsproject.backend.dto.asset.CreateAssetRequest;
 import com.mdsproject.backend.exceptions.ResourceNotFoundException;
 import com.mdsproject.backend.models.Asset;
 import com.mdsproject.backend.models.FairPayGroup;
+import com.mdsproject.backend.models.Wallet;
 import com.mdsproject.backend.models.enums.AssetType;
 import com.mdsproject.backend.models.enums.AuditAction;
 import com.mdsproject.backend.repositories.AssetRepository;

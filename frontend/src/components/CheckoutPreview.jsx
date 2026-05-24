@@ -16,9 +16,9 @@ const CheckoutPreview = ({ walletId }) => {
             setLoading(true);
             setError(null);
             try {
-                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                const token = localStorage.getItem('fairpay_token');
 
-                const url = `/api/checkout/preview?walletId=${encodeURIComponent(walletId)}&amount=${encodeURIComponent(amount)}`;
+                const url = `http://localhost:8080/api/checkout/preview?walletId=${encodeURIComponent(walletId)}&amount=${encodeURIComponent(amount)}`;
                 const response = await fetch(url, {
                     headers: {
                         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
