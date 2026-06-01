@@ -114,9 +114,14 @@ export default function GroupPage() {
         category: txCategory,
       });
       console.log('Transaction created', txResult);
-      setShowTxModal(false);
-      setTxAmount(''); setTxMerchant(''); setTxCategory(''); setTxAiValidation(null);
-      loadAll();
+      
+      // Small delay to show the AI result before closing
+      setTimeout(() => {
+        setShowTxModal(false);
+        setTxAmount(''); setTxMerchant(''); setTxCategory('');
+        setTxAiValidation(null);
+        loadAll();
+      }, 2000);
     } catch (err) {
       console.error('Transaction error', err);
       setError(err.message);
@@ -139,14 +144,6 @@ export default function GroupPage() {
       setWalletBudget('');
       setWalletThreshold('');
       loadAll();
-
-      // Small delay to show the AI result before closing
-      setTimeout(() => {
-        setShowTxModal(false);
-        setTxAmount(''); setTxMerchant(''); setTxCategory('');
-        setTxAiValidation(null);
-        loadAll();
-      }, 1500);
     } catch (err) {
       setError(err.message);
     }

@@ -19,6 +19,8 @@
   --glass-blur: blur(24px);
   --shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  --surface: #111827;
+  --surface-2: #1f2937;
 }
 
 :root[data-theme="light"] {
@@ -32,6 +34,8 @@
   --accent: #0ea5e9;
   --accent-hover: #0284c7;
   --shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

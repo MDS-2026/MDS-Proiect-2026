@@ -65,6 +65,9 @@ public class TransactionService {
                 tx.setStatus(TransactionStatus.PENDING_GROUP_APPROVAL);
                 transactionRepository.save(tx);
 
+                // Seed consensus approvals so that group members can vote
+                seedGroupConsensusApprovals(tx, wallet.getGroup().getId());
+
                 String reason = aiValidationService.getValidationReason(wallet, request.getMerchant(), request.getCategory());
                 alertService.alertTransactionDeclined(tx, "AI Warning: " + reason + " — Group approval required");
 
@@ -99,13 +102,7 @@ public class TransactionService {
                     wallet.getGroup().getId(), tx.getId(),
                     "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
                             + " on wallet '" + wallet.getName() + "' — Status: " + tx.getStatus()
-                            + " (AI did not approve; unanimous group approval required)");
-
-            int n = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
-            String memberSummary = buildMemberEmailSummary(wallet.getGroup().getId());
-            auditLogService.log(AuditAction.TRANSACTION_GROUP_CONSENSUS_REQUESTED, email,
-                    wallet.getGroup().getId(), tx.getId(),
-                    "Approval requests sent to all " + n + " group member(s) for this transaction. " + memberSummary);
+                            + " (AI service unavailable; manual administrator approval required)");
 
             return toResponse(tx);
         }
