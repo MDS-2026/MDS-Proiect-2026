@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel any in-progress run on the same branch when a new push arrives.
+# This prevents queuing up redundant CI runs and wastes fewer minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # ============================================
   # JOB 1: Backend — Build & Test (Spring Boot)
@@ -85,6 +91,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Security audit
+        run: npm audit --audit-level=high
+
       - name: Lint
         run: npm run lint
 
@@ -110,5 +119,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build Docker image
-        run: docker build -t mds-proiect-2026:ci-${{ github.sha }} .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: mds-proiect-2026:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
