@@ -25,13 +25,14 @@ public class AiValidationService {
     private final AuditLogService auditLogService;
     private final RestTemplate restTemplate;
 
-    // Make sure your application.properties has: 
-    // ai.endpoint=https://api.groq.com/openai/v1/chat/completions
     @Value("${ai.endpoint:}")
     private String aiEndpoint;
 
     @Value("${ai.api-key:}")
     private String aiApiKey;
+
+    @Value("${ai.model:gemini-2.5-flash}")
+    private String aiModel;
 
     @Value("${ai.timeout-ms:5000}")
     private long aiTimeoutMs;
@@ -118,7 +119,7 @@ public class AiValidationService {
             message.put("content", prompt);
 
             Map<String, Object> request = new HashMap<>();
-            request.put("model", "llama-3.3-70b-versatile"); // Use Groq model
+            request.put("model", aiModel);
             request.put("messages", List.of(message));
             request.put("temperature", 0.0); // Force deterministic output
 

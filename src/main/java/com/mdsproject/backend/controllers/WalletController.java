@@ -3,7 +3,9 @@ package com.mdsproject.backend.controllers;
 import com.mdsproject.backend.dto.wallet.CreateWalletRequest;
 import com.mdsproject.backend.dto.wallet.VirtualCardResponse;
 import com.mdsproject.backend.dto.wallet.WalletResponse;
+import com.mdsproject.backend.dto.wallet.ShoppingSuggestionsResponse;
 import com.mdsproject.backend.services.WalletService;
+import com.mdsproject.backend.services.WalletShoppingSuggestionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,7 @@ import java.util.UUID;
 public class WalletController {
 
     private final WalletService walletService;
+    private final WalletShoppingSuggestionService walletShoppingSuggestionService;
 
     @PostMapping
     public ResponseEntity<WalletResponse> createWallet(@PathVariable UUID groupId,
@@ -54,5 +57,12 @@ public class WalletController {
                                                            @RequestParam Double threshold,
                                                            Authentication auth) {
         return ResponseEntity.ok(walletService.updateAutoApproveThreshold(walletId, threshold, auth.getName()));
+    }
+
+    @PostMapping("/{walletId}/shopping-suggestions")
+    public ResponseEntity<ShoppingSuggestionsResponse> generateShoppingSuggestions(
+            @PathVariable UUID groupId,
+            @PathVariable UUID walletId) {
+        return ResponseEntity.ok(walletShoppingSuggestionService.generateSuggestions(groupId, walletId));
     }
 }
