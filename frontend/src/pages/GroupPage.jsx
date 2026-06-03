@@ -59,6 +59,11 @@ export default function GroupPage() {
   const [txCategory, setTxCategory] = useState('');
   const [txAiValidation, setTxAiValidation] = useState(null);
 
+  // Shopping suggestions (LangChain agent)
+  const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [shoppingSuggestions, setShoppingSuggestions] = useState(null);
+
   useEffect(() => { loadAll(); }, [id]);
 
   // Ensure the transaction modal has a default wallet selected when opened
@@ -169,6 +174,22 @@ export default function GroupPage() {
   const handleViewCard = (card) => {
     setSelectedCard(card);
     setShowCardModal(true);
+  };
+
+  const handleGenerateSuggestions = async (walletId) => {
+    setSuggestionsLoading(true);
+    setShoppingSuggestions(null);
+    setShowSuggestionsModal(true);
+    setError('');
+    try {
+      const data = await api.generateShoppingSuggestions(id, walletId);
+      setShoppingSuggestions(data);
+    } catch (err) {
+      setError(err.message);
+      setShowSuggestionsModal(false);
+    } finally {
+      setSuggestionsLoading(false);
+    }
   };
 
   const totalPooled = assets.reduce((sum, a) => sum + a.estimatedEurValue, 0);
@@ -396,7 +417,7 @@ export default function GroupPage() {
               </div>
               {wallets.length === 0 ? <div className="empty">No wallets</div> : (
                 <table className="data-table">
-                  <thead><tr><th>Name</th><th>Purpose</th><th>Budget</th><th>Auto-approve</th></tr></thead>
+                  <thead><tr><th>Name</th><th>Purpose</th><th>Budget</th><th>Auto-approve</th><th>Actions</th></tr></thead>
                   <tbody>
                     {wallets.map(w => (
                       <tr key={w.id}>
@@ -404,6 +425,16 @@ export default function GroupPage() {
                         <td style={{ color: 'var(--text-2)' }}>{w.purpose || '—'}</td>
                         <td>€{w.budgetLimit.toFixed(2)}</td>
                         <td>€{w.autoApproveThreshold.toFixed(2)}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-primary"
+                            disabled={suggestionsLoading}
+                            onClick={() => handleGenerateSuggestions(w.id)}
+                          >
+                            Generate suggestions
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -663,6 +694,66 @@ export default function GroupPage() {
                 <button type="submit" className="btn btn-primary">Submit</button>
               </div>
             </form>
+          </Modal>
+        )}
+
+        {/* Shopping suggestions modal */}
+        {showSuggestionsModal && (
+          <Modal
+            title={shoppingSuggestions ? `Suggestions — ${shoppingSuggestions.walletName}` : 'Shopping suggestions'}
+            onClose={() => { setShowSuggestionsModal(false); setShoppingSuggestions(null); }}
+          >
+            {suggestionsLoading && <div className="empty">Generating suggestions with AI…</div>}
+            {!suggestionsLoading && shoppingSuggestions && (
+              <>
+                <p className="stat-sub mb-12">{shoppingSuggestions.summary}</p>
+                <div className="stat-sub mb-12">
+                  Purpose: {shoppingSuggestions.walletPurpose || '—'} · Budget €{shoppingSuggestions.budgetLimit?.toFixed(2)}
+                  {' '}· Spent €{shoppingSuggestions.spentAmount?.toFixed(2)}
+                  {' '}· Remaining €{shoppingSuggestions.remainingBudget?.toFixed(2)}
+                </div>
+                {shoppingSuggestions.suggestions?.length === 0 ? (
+                  <div className="empty">No suggestions returned.</div>
+                ) : (
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {shoppingSuggestions.suggestions.map((s, i) => (
+                      <li
+                        key={i}
+                        className="card mb-12"
+                        style={{ padding: 12 }}
+                      >
+                        <div style={{ fontWeight: 600 }}>{s.productName}</div>
+                        <div className="stat-sub" style={{ marginTop: 4 }}>{s.description}</div>
+                        <div style={{ marginTop: 8, fontSize: 13 }}>
+                          ~€{Number(s.estimatedPriceEur).toFixed(2)}
+                          {s.sourceName && (
+                            <>
+                              {' '}· Source:{' '}
+                              {s.sourceUrl ? (
+                                <a href={s.sourceUrl} target="_blank" rel="noopener noreferrer">
+                                  {s.sourceName}
+                                </a>
+                              ) : (
+                                s.sourceName
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => { setShowSuggestionsModal(false); setShoppingSuggestions(null); }}
+              >
+                Close
+              </button>
+            </div>
           </Modal>
         )}
 

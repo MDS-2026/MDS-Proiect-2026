@@ -21,6 +21,7 @@ ai:
   enabled: ${AI_ENABLED:false}
   endpoint: ${AI_ENDPOINT:}
   api-key: ${AI_API_KEY:}
+  model: ${AI_MODEL:gemini-2.5-flash}
   timeout-ms: 5000
 
 app:

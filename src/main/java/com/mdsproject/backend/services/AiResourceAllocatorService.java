@@ -34,6 +34,9 @@ public class AiResourceAllocatorService {
     @Value("${ai.api-key:}")
     private String aiApiKey;
 
+    @Value("${ai.model:gemini-2.5-flash}")
+    private String aiModel;
+
     @Value("${ai.enabled:true}")
     private boolean aiEnabled;
 
@@ -109,7 +112,7 @@ public class AiResourceAllocatorService {
             message.put("content", prompt);
 
             Map<String, Object> request = new HashMap<>();
-            request.put("model", "llama-3.3-70b-versatile");
+            request.put("model", aiModel);
             request.put("messages", List.of(message));
             request.put("temperature", 0.0);
 

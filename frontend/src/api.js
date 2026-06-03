@@ -72,6 +72,8 @@ const api = {
   getVirtualCard: (groupId, walletId) => request(`/groups/${groupId}/wallets/${walletId}/card`),
   updateThreshold: (groupId, walletId, threshold) =>
     request(`/groups/${groupId}/wallets/${walletId}/threshold?threshold=${threshold}`, { method: 'PATCH' }),
+  generateShoppingSuggestions: (groupId, walletId) =>
+    request(`/groups/${groupId}/wallets/${walletId}/shopping-suggestions`, { method: 'POST' }),
 
   // Transactions
   getWalletTransactions: (walletId) => request(`/wallets/${walletId}/transactions`),

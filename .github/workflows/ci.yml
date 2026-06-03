@@ -14,14 +14,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ============================================
-  # JOB 1: Backend — Build & Test (Spring Boot)
-  # ============================================
+  
   backend:
     name: Backend — Build & Test
     runs-on: ubuntu-latest
 
-    # Spin up a real PostgreSQL container for integration tests
+    
     services:
       postgres:
         image: postgres:15-alpine
