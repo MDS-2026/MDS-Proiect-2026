@@ -20,14 +20,19 @@ async function request(path, options = {}) {
 
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
 
-  if (res.status === 401) {
+  if ((res.status === 401 || res.status === 403) && !path.startsWith('/auth/')) {
     clearToken();
     window.location.href = '/login';
     return;
   }
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'Request failed');
+  const text = await res.text();
+  let data = null;
+  if (text) {
+    try { data = JSON.parse(text); } catch { data = null; }
+  }
+
+  if (!res.ok) throw new Error((data && data.message) || `Request failed (${res.status})`);
   return data;
 }
 

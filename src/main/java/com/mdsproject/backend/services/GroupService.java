@@ -6,11 +6,15 @@ import com.mdsproject.backend.exceptions.ResourceNotFoundException;
 import com.mdsproject.backend.models.FairPayGroup;
 import com.mdsproject.backend.models.GroupMembership;
 import com.mdsproject.backend.models.User;
+import com.mdsproject.backend.models.Wallet;
+import com.mdsproject.backend.models.VirtualCard;
 import com.mdsproject.backend.models.enums.AuditAction;
 import com.mdsproject.backend.models.enums.Role;
 import com.mdsproject.backend.repositories.FairPayGroupRepository;
 import com.mdsproject.backend.repositories.GroupMembershipRepository;
 import com.mdsproject.backend.repositories.UserRepository;
+import com.mdsproject.backend.repositories.WalletRepository;
+import com.mdsproject.backend.repositories.VirtualCardRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +31,8 @@ public class GroupService {
     private final GroupMembershipRepository membershipRepository;
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
+    private final WalletRepository walletRepository;
+    private final VirtualCardRepository virtualCardRepository;
         private final com.mdsproject.backend.repositories.AssetRepository assetRepository;
 
     @Transactional
@@ -45,8 +51,29 @@ public class GroupService {
         membership.setRole(Role.ADMIN);
         membershipRepository.save(membership);
 
+        // Auto-create root wallet for the group
+        Wallet rootWallet = new Wallet();
+        rootWallet.setName(group.getName());
+        rootWallet.setPurpose("Root wallet for group");
+        rootWallet.setBudgetLimit(0.0);
+        rootWallet.setAutoApproveThreshold(0.0);
+        rootWallet.setGroup(group);
+        walletRepository.save(rootWallet);
+
+        // Generate virtual card for root wallet
+        VirtualCard card = new VirtualCard();
+        card.setCardNumber(generateCardNumber());
+        card.setCvv(String.format("%03d", new java.util.Random().nextInt(1000)));
+        card.setExpiryDate(java.time.LocalDate.now().plusYears(3));
+        card.setActive(true);
+        card.setWallet(rootWallet);
+        virtualCardRepository.save(card);
+
         auditLogService.log(AuditAction.GROUP_CREATED, email, group.getId(), group.getId(),
                 "Group '" + group.getName() + "' created");
+
+        auditLogService.log(AuditAction.WALLET_CREATED, email, group.getId(), rootWallet.getId(),
+                "Root wallet '" + rootWallet.getName() + "' auto-created for group");
 
         return toGroupResponse(group);
     }
@@ -144,5 +171,12 @@ public class GroupService {
 
     private String generateInviteCode() {
         return UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    private String generateCardNumber() {
+        java.util.Random random = new java.util.Random();
+        StringBuilder sb = new StringBuilder("4");
+        for (int i = 1; i < 16; i++) sb.append(random.nextInt(10));
+        return sb.toString();
     }
 }

@@ -285,7 +285,7 @@ export default function GroupPage() {
             <div className="table-section card">
               <div className="table-header">
                 <div className="table-title">Wallets</div>
-                <button className="btn btn-sm" onClick={() => setShowWalletModal(true)}>+ New</button>
+                <button className="btn btn-sm" onClick={() => { setWalletParentId((wallets.find(w => w.parentWalletId === null) || wallets[0])?.id || ''); setShowWalletModal(true); }}>+ New</button>
               </div>
               {wallets.length === 0 ? <div className="empty">No wallets</div> : (
                 <table className="data-table">
@@ -459,10 +459,9 @@ export default function GroupPage() {
                 <input className="form-input" value={walletName} onChange={e => setWalletName(e.target.value)} required />
               </div>
               <div className="form-group">
-                <label className="form-label">Parent Wallet (optional)</label>
+                <label className="form-label">Parent Wallet</label>
                 <select className="form-input" value={walletParentId} onChange={e => setWalletParentId(e.target.value)}>
-                  <option value="">None (Root Wallet)</option>
-                  {wallets.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                  {wallets.map(w => <option key={w.id} value={w.id}>{w.name}{w.parentWalletId === null ? ' (Root)' : ''}</option>)}
                 </select>
               </div>
               <div className="form-group">

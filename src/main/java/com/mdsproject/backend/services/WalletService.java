@@ -46,10 +46,18 @@ public class WalletService {
         wallet.setAutoApproveThreshold(request.getAutoApproveThreshold());
         wallet.setGroup(group);
 
+        // Every new wallet must have a parent; default to the group's root wallet
         if (request.getParentWalletId() != null) {
             Wallet parent = walletRepository.findById(request.getParentWalletId())
                     .orElseThrow(() -> new ResourceNotFoundException("Parent wallet not found"));
             wallet.setParentWallet(parent);
+        } else {
+            // Find the root wallet (the one with no parent)
+            Wallet rootWallet = walletRepository.findByGroupId(groupId).stream()
+                    .filter(w -> w.getParentWallet() == null)
+                    .findFirst()
+                    .orElseThrow(() -> new ResourceNotFoundException("Root wallet not found for group"));
+            wallet.setParentWallet(rootWallet);
         }
 
         walletRepository.save(wallet);
