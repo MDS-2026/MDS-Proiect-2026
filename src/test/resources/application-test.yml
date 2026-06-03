@@ -1,0 +1,34 @@
+# Test profile configuration — used by CI and local test runs
+# Overrides values from application.yml when running tests
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/mds_db}
+    username: ${SPRING_DATASOURCE_USERNAME:mds_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:mds_password}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  flyway:
+    enabled: false
+
+# Disable AI external calls in test — use heuristic fallback
+ai:
+  enabled: ${AI_ENABLED:false}
+  endpoint: ${AI_ENDPOINT:}
+  api-key: ${AI_API_KEY:}
+  timeout-ms: 5000
+
+app:
+  jwt:
+    secret: test-secret-key-that-is-at-least-256-bits-long-for-hmac-sha
+    expiration-ms: 86400000
+
+logging:
+  level:
+    root: WARN
+    com.mdsproject: INFO

@@ -22,6 +22,15 @@ export default function GroupPage() {
 
   // preview state
   const [previewWalletId, setPreviewWalletId] = useState(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
+
+  const handleCopyInvite = async () => {
+    try {
+      await navigator.clipboard.writeText(group?.inviteCode || '');
+      setInviteCopied(true);
+      setTimeout(() => setInviteCopied(false), 2000);
+    } catch (_) {}
+  };
 
   // Modal states
   const [showAssetModal, setShowAssetModal] = useState(false);
@@ -114,9 +123,14 @@ export default function GroupPage() {
         category: txCategory,
       });
       console.log('Transaction created', txResult);
-      setShowTxModal(false);
-      setTxAmount(''); setTxMerchant(''); setTxCategory(''); setTxAiValidation(null);
-      loadAll();
+
+      // Small delay to show the AI result before closing
+      setTimeout(() => {
+        setShowTxModal(false);
+        setTxAmount(''); setTxMerchant(''); setTxCategory('');
+        setTxAiValidation(null);
+        loadAll();
+      }, 2000);
     } catch (err) {
       console.error('Transaction error', err);
       setError(err.message);
@@ -139,14 +153,6 @@ export default function GroupPage() {
       setWalletBudget('');
       setWalletThreshold('');
       loadAll();
-
-      // Small delay to show the AI result before closing
-      setTimeout(() => {
-        setShowTxModal(false);
-        setTxAmount(''); setTxMerchant(''); setTxCategory('');
-        setTxAiValidation(null);
-        loadAll();
-      }, 1500);
     } catch (err) {
       setError(err.message);
     }
@@ -241,7 +247,15 @@ export default function GroupPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button className="btn btn-sm" onClick={() => navigate('/')}>←</button>
             <h1 className="page-title" style={{ marginBottom: 0 }}>{group.name}</h1>
-            <span className="invite-code" style={{ marginLeft: 8 }}>{group.inviteCode}</span>
+            <span
+              className="invite-code"
+              style={{ marginLeft: 8, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              onClick={handleCopyInvite}
+              title="Click to copy invite code"
+            >
+              {group.inviteCode}
+              <span style={{ fontSize: 11, opacity: 0.7 }}>{inviteCopied ? '✓ Copied' : '⎘'}</span>
+            </span>
           </div>
           <NotificationBell />
         </div>
@@ -363,7 +377,7 @@ export default function GroupPage() {
               {/* Render preview card below assets table when a previewWalletId is selected */}
               {previewWalletId && (
                 <div className="card mt-6">
-                  <div style={{ display:'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div className="table-title">Checkout split preview (Asset {previewWalletId})</div>
                     <button type="button" className="btn btn-sm" onClick={() => setPreviewWalletId(null)}>Close</button>
                   </div>
@@ -491,7 +505,7 @@ export default function GroupPage() {
           </div>
         )}
 
-     
+
 
         {activeTab === 'audit' && (
           <div className="table-section card">
@@ -553,11 +567,11 @@ export default function GroupPage() {
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn" onClick={() => {
-                    setShowAssetModal(false);
-                    setAssetProvider('');
-                    setAssetValue('');
-                    setAssetExpiry('');
-                    setAssetType('CASH');
+                  setShowAssetModal(false);
+                  setAssetProvider('');
+                  setAssetValue('');
+                  setAssetExpiry('');
+                  setAssetType('CASH');
                 }}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Add</button>
               </div>

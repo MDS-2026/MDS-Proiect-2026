@@ -76,9 +76,9 @@ public class AiValidationService {
                     && (c.contains("grocery") || m.contains("supermarket") || m.contains("lidl") || m.contains("walmart") || m.contains("coop"))) {
                 isValid = false;
                 reason = "Mismatch: Grocery/Supermarket on Travel/Flight wallet";
-            } else if ((name.contains("food") || purpose.contains("food") || purpose.contains("restaurant")) && c.contains("electronics")) {
+            } else if ((name.contains("food") || purpose.contains("food") || purpose.contains("restaurant") || name.contains("grocer") || purpose.contains("grocer")) && c.contains("electronics")) {
                 isValid = false;
-                reason = "Mismatch: Electronics on Food/Restaurant wallet";
+                reason = "Mismatch: Electronics on Food/Restaurant/Groceries wallet";
             } else if ((name.contains("office") || purpose.contains("office")) && (c.contains("entertainment") || m.contains("cinema") || m.contains("spotify"))) {
                 isValid = false;
                 reason = "Mismatch: Entertainment on Office wallet";
@@ -165,10 +165,13 @@ public class AiValidationService {
         String m = safeLower(merchant);
         String c = safeLower(category);
 
-        if ((name.contains("flight") || purpose.contains("flight")) && (c.contains("grocery") || m.contains("supermarket"))) {
+        if ((name.contains("flight") || purpose.contains("flight") || purpose.contains("travel")) 
+                && (c.contains("grocery") || m.contains("supermarket") || m.contains("lidl") || m.contains("walmart") || m.contains("coop"))) {
             return "Grocery/Supermarket transaction not allowed on Travel/Flight wallet";
-        } else if ((name.contains("food") || purpose.contains("food")) && c.contains("electronics")) {
-            return "Electronics transaction not allowed on Food wallet";
+        } else if ((name.contains("food") || purpose.contains("food") || purpose.contains("restaurant") || name.contains("grocer") || purpose.contains("grocer")) && c.contains("electronics")) {
+            return "Electronics transaction not allowed on Food/Restaurant/Groceries wallet";
+        } else if ((name.contains("office") || purpose.contains("office")) && (c.contains("entertainment") || m.contains("cinema") || m.contains("spotify"))) {
+            return "Entertainment transaction not allowed on Office wallet";
         }
         return "Transaction does not match wallet purpose";
     }

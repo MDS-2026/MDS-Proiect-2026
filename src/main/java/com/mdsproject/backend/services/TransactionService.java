@@ -57,27 +57,32 @@ public class TransactionService {
                     request.getMerchant(),
                     request.getCategory(),
                     request.getAmount(),
-                    email
-            );
+                    email);
 
             if (!valid) {
                 // AI mismatch: trimite la aprobare de grup, nu DECLINED
                 tx.setStatus(TransactionStatus.PENDING_GROUP_APPROVAL);
                 transactionRepository.save(tx);
 
-                String reason = aiValidationService.getValidationReason(wallet, request.getMerchant(), request.getCategory());
+                // Seed consensus approvals so that group members can vote
+                seedGroupConsensusApprovals(tx, wallet.getGroup().getId());
+
+                String reason = aiValidationService.getValidationReason(wallet, request.getMerchant(),
+                        request.getCategory());
                 alertService.alertTransactionDeclined(tx, "AI Warning: " + reason + " — Group approval required");
 
                 auditLogService.log(AuditAction.TRANSACTION_CREATED, email,
                         wallet.getGroup().getId(), tx.getId(),
                         "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
-                                + " on wallet '" + wallet.getName() + "' — Status: PENDING_GROUP_APPROVAL (AI mismatch: " + reason + ")");
+                                + " on wallet '" + wallet.getName()
+                                + "' — Status: PENDING_GROUP_APPROVAL (AI mismatch: " + reason + ")");
 
                 int n = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
                 String memberSummary = buildMemberEmailSummary(wallet.getGroup().getId());
                 auditLogService.log(AuditAction.TRANSACTION_GROUP_CONSENSUS_REQUESTED, email,
                         wallet.getGroup().getId(), tx.getId(),
-                        "Approval requests sent to all " + n + " group member(s) for this transaction. " + memberSummary);
+                        "Approval requests sent to all " + n + " group member(s) for this transaction. "
+                                + memberSummary);
 
                 return toResponse(tx);
             }
@@ -90,16 +95,18 @@ public class TransactionService {
             }
 
         } catch (Exception e) {
-            tx.setStatus(TransactionStatus.PENDING_MANUAL_APPROVAL);
+            tx.setStatus(TransactionStatus.PENDING_GROUP_APPROVAL);
             transactionRepository.save(tx);
 
-            alertService.alertTransactionDeclined(tx, "AI validation unavailable — Awaiting manual approval");
+            seedGroupConsensusApprovals(tx, wallet.getGroup().getId());
+
+            alertService.alertTransactionDeclined(tx, "AI validation unavailable — unanimous group approval required");
 
             auditLogService.log(AuditAction.TRANSACTION_CREATED, email,
                     wallet.getGroup().getId(), tx.getId(),
                     "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
-                            + " on wallet '" + wallet.getName() + "' — Status: " + tx.getStatus()
-                            + " (AI did not approve; unanimous group approval required)");
+                            + " on wallet '" + wallet.getName() + "' — Status: PENDING_GROUP_APPROVAL"
+                            + " (AI service unavailable; unanimous group approval required)");
 
             int n = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
             String memberSummary = buildMemberEmailSummary(wallet.getGroup().getId());
@@ -124,7 +131,8 @@ public class TransactionService {
                         + " on wallet '" + wallet.getName() + "' — Status: " + tx.getStatus());
 
         if (tx.getStatus() == TransactionStatus.PENDING) {
-            alertService.alertTransactionDeclined(tx, "New transaction pending approval: €" + tx.getAmount() + " at " + tx.getMerchant());
+            alertService.alertTransactionDeclined(tx,
+                    "New transaction pending approval: €" + tx.getAmount() + " at " + tx.getMerchant());
         }
 
         return toResponse(tx);
@@ -164,27 +172,34 @@ public class TransactionService {
         Wallet wallet = walletRepository.findById(request.getWalletId())
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
 
-        boolean valid = aiValidationService.validateTransaction(
-                wallet,
-                request.getMerchant(),
-                request.getCategory(),
-                request.getAmount(),
-                email
-        );
+        boolean valid;
+        String reason;
 
-        String reason = valid
-                ? "Transaction matches wallet purpose"
-                : aiValidationService.getValidationReason(wallet, request.getMerchant(), request.getCategory());
+        try {
+            valid = aiValidationService.validateTransaction(
+                    wallet,
+                    request.getMerchant(),
+                    request.getCategory(),
+                    request.getAmount(),
+                    email);
+            reason = valid
+                    ? "Transaction matches wallet purpose"
+                    : aiValidationService.getValidationReason(wallet, request.getMerchant(), request.getCategory());
+        } catch (AiValidationService.TransactionValidationException e) {
+            return new ValidateTransactionResponse(false, "AI service unavailable — group approval will be required");
+        }
 
         if (!valid) {
-            // ... (existing code for decline)
             Transaction dummyTx = new Transaction();
             dummyTx.setMerchant(request.getMerchant());
             dummyTx.setAmount(request.getAmount());
             dummyTx.setWallet(wallet);
             alertService.alertTransactionDeclined(dummyTx, "AI Warning: " + reason);
         } else {
-            alertService.sendGroupAlert(wallet.getGroup(), "AI Approved: Transaction of €" + request.getAmount() + " at " + request.getMerchant() + " matches wallet purpose.", "/groups/" + wallet.getGroup().getId());
+            alertService.sendGroupAlert(
+                    wallet.getGroup(), "AI Approved: Transaction of €" + request.getAmount() + " at "
+                            + request.getMerchant() + " matches wallet purpose.",
+                    "/groups/" + wallet.getGroup().getId());
         }
 
         return new ValidateTransactionResponse(valid, reason);
@@ -239,7 +254,9 @@ public class TransactionService {
                 tx.getWallet().getGroup().getId(), tx.getId(),
                 "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant() + " approved");
 
-        alertService.sendGroupAlert(tx.getWallet().getGroup(), "Transaction Approved: €" + tx.getAmount() + " at " + tx.getMerchant(), "/groups/" + tx.getWallet().getGroup().getId());
+        alertService.sendGroupAlert(tx.getWallet().getGroup(),
+                "Transaction Approved: €" + tx.getAmount() + " at " + tx.getMerchant(),
+                "/groups/" + tx.getWallet().getGroup().getId());
 
         return toResponse(tx);
     }
@@ -295,7 +312,6 @@ public class TransactionService {
                 tx.getWallet().getName(),
                 tx.getCreatedAt(),
                 groupConsensusRequired,
-                groupConsensusApproved
-        );
+                groupConsensusApproved);
     }
 }

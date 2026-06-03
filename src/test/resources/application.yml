@@ -1,0 +1,5 @@
+# Activates the 'test' profile for all tests
+# This causes application-test.yml to be loaded
+spring:
+  profiles:
+    active: test
