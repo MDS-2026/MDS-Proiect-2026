@@ -49,7 +49,7 @@ jobs:
           cache: maven
 
       - name: Run backend tests
-        run: ./mvnw clean verify --batch-mode --no-transfer-progress Dmaven.test.failure.ignore=true
+        run: ./mvnw clean verify --batch-mode --no-transfer-progress -Dmaven.test.failure.ignore=true
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/mds_db
           SPRING_DATASOURCE_USERNAME: mds_user
