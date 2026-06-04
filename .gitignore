@@ -35,3 +35,7 @@ build/
 # Log files
 logs/
 *.log
+
+# Application config (contains API keys)
+application.yml
+src/main/resources/application.yml

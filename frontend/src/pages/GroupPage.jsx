@@ -58,6 +58,8 @@ export default function GroupPage() {
   const [txMerchant, setTxMerchant] = useState('');
   const [txCategory, setTxCategory] = useState('');
   const [txAiValidation, setTxAiValidation] = useState(null);
+  const [txSubmitting, setTxSubmitting] = useState(false);
+  const [txError, setTxError] = useState('');
 
   // Shopping suggestions (LangChain agent)
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
@@ -111,6 +113,9 @@ export default function GroupPage() {
 
   const handleCreateTx = async (e) => {
     e.preventDefault();
+    if (txSubmitting) return;
+    setTxSubmitting(true);
+    setTxError('');
     console.log('handleCreateTx called', { txWalletId, txAmount, txMerchant, txCategory });
     try {
       const validation = await api.validateTransaction({
@@ -134,11 +139,14 @@ export default function GroupPage() {
         setShowTxModal(false);
         setTxAmount(''); setTxMerchant(''); setTxCategory('');
         setTxAiValidation(null);
+        setTxError('');
         loadAll();
       }, 2000);
     } catch (err) {
       console.error('Transaction error', err);
-      setError(err.message);
+      setTxError(err.message);
+    } finally {
+      setTxSubmitting(false);
     }
   };
   const handleCreateWallet = async (e) => {
@@ -446,7 +454,7 @@ export default function GroupPage() {
             <div className="table-section card">
               <div className="table-header">
                 <div className="table-title">Transactions</div>
-                <button className="btn btn-sm" onClick={() => { setTxWalletId(wallets[0]?.id || ''); setTxAiValidation(null); setShowTxModal(true); }}>+ New</button>
+                <button className="btn btn-sm" onClick={() => { setTxWalletId(wallets[0]?.id || ''); setTxAiValidation(null); setTxError(''); setShowTxModal(true); }}>+ New</button>
               </div>
               {transactions.length === 0 ? <div className="empty">No transactions</div> : (
                 <table className="data-table">
@@ -689,9 +697,26 @@ export default function GroupPage() {
                   AI validation: {txAiValidation.reason}
                 </div>
               )}
+              {txError && (
+                <div
+                  className="mb-12"
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    background: 'rgba(220, 38, 38, 0.12)',
+                    border: '1px solid rgba(220, 38, 38, 0.35)',
+                    color: '#dc2626',
+                    fontSize: 13,
+                  }}
+                >
+                  {txError}
+                </div>
+              )}
               <div className="modal-actions">
-                <button type="button" className="btn" onClick={() => { setTxAiValidation(null); setShowTxModal(false); }}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Submit</button>
+                <button type="button" className="btn" onClick={() => { setTxAiValidation(null); setTxError(''); setShowTxModal(false); }}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={txSubmitting}>
+                  {txSubmitting ? 'Submitting…' : 'Submit'}
+                </button>
               </div>
             </form>
           </Modal>

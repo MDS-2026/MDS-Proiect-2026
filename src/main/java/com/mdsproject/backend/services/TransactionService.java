@@ -90,6 +90,7 @@ public class TransactionService {
             // Auto-approve dacă suma e sub prag
             if (request.getAmount() <= wallet.getAutoApproveThreshold()) {
                 tx.setStatus(TransactionStatus.APPROVED);
+                deductFromWalletHierarchy(wallet, request.getAmount());
             } else {
                 tx.setStatus(TransactionStatus.PENDING);
             }
@@ -119,6 +120,7 @@ public class TransactionService {
 
         if (request.getAmount() <= wallet.getAutoApproveThreshold()) {
             tx.setStatus(TransactionStatus.APPROVED);
+            deductFromWalletHierarchy(wallet, request.getAmount());
         } else {
             tx.setStatus(TransactionStatus.PENDING);
         }
@@ -236,6 +238,7 @@ public class TransactionService {
 
             if (required > 0 && approved >= required) {
                 tx.setStatus(TransactionStatus.APPROVED);
+                deductFromWalletHierarchy(tx.getWallet(), tx.getAmount());
                 transactionRepository.save(tx);
                 auditLogService.log(AuditAction.TRANSACTION_APPROVED, email,
                         tx.getWallet().getGroup().getId(), tx.getId(),
@@ -248,6 +251,7 @@ public class TransactionService {
 
         // Legacy single-step approval for PENDING (over threshold, AI OK)
         tx.setStatus(TransactionStatus.APPROVED);
+        deductFromWalletHierarchy(tx.getWallet(), tx.getAmount());
         transactionRepository.save(tx);
 
         auditLogService.log(AuditAction.TRANSACTION_APPROVED, email,
@@ -313,5 +317,27 @@ public class TransactionService {
                 tx.getCreatedAt(),
                 groupConsensusRequired,
                 groupConsensusApproved);
+    }
+
+    /**
+     * Scade suma tranzacției din wallet-ul sursă și din root wallet.
+     * Dacă wallet-ul sursă este chiar root-ul, se scade o singură dată.
+     */
+    private void deductFromWalletHierarchy(Wallet sourceWallet, Double amount) {
+        // Scade din wallet-ul sursă
+        sourceWallet.setBudgetLimit(sourceWallet.getBudgetLimit() - amount);
+        walletRepository.save(sourceWallet);
+
+        // Găsește root wallet-ul (cel fără parent)
+        Wallet root = sourceWallet;
+        while (root.getParentWallet() != null) {
+            root = root.getParentWallet();
+        }
+
+        // Scade și din root wallet dacă e diferit de wallet-ul sursă
+        if (!root.getId().equals(sourceWallet.getId())) {
+            root.setBudgetLimit(root.getBudgetLimit() - amount);
+            walletRepository.save(root);
+        }
     }
 }

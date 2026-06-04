@@ -71,7 +71,29 @@ public class AssetService {
         // Trigger budget rebalancing check
         allocatorService.rebalanceCardLimits(group, groupWallets);
 
+        // Sync root wallet budgets with total pooled asset value
+        syncRootWalletBudgets(groupId);
+
         return toResponse(asset);
+    }
+
+    /**
+     * Recalculates the total pooled asset value for the group and updates
+     * the budgetLimit of all root wallets (those with no parent) to match.
+     */
+    private void syncRootWalletBudgets(UUID groupId) {
+        double totalPooled = assetRepository.findByGroupId(groupId).stream()
+                .mapToDouble(a -> a.getEstimatedEurValue() != null ? a.getEstimatedEurValue() : 0.0)
+                .sum();
+
+        List<Wallet> rootWallets = walletRepository.findByGroupId(groupId).stream()
+                .filter(w -> w.getParentWallet() == null)
+                .collect(Collectors.toList());
+
+        for (Wallet root : rootWallets) {
+            root.setBudgetLimit(totalPooled);
+            walletRepository.save(root);
+        }
     }
 
     public List<AssetResponse> getGroupAssets(UUID groupId) {
