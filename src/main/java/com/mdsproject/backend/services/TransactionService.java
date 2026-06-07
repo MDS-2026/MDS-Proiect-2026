@@ -63,12 +63,9 @@ public class TransactionService {
                 // AI mismatch: trimite la aprobare de grup, nu DECLINED
                 tx.setStatus(TransactionStatus.PENDING_GROUP_APPROVAL);
                 transactionRepository.save(tx);
-
-                // Seed consensus approvals so that group members can vote
                 seedGroupConsensusApprovals(tx, wallet.getGroup().getId());
 
-                String reason = aiValidationService.getValidationReason(wallet, request.getMerchant(),
-                        request.getCategory());
+                String reason = aiValidationService.getValidationReason(wallet, request.getMerchant(), request.getCategory());
                 alertService.alertTransactionDeclined(tx, "AI Warning: " + reason + " — Group approval required");
 
                 auditLogService.log(AuditAction.TRANSACTION_CREATED, email,
@@ -77,12 +74,13 @@ public class TransactionService {
                                 + " on wallet '" + wallet.getName()
                                 + "' — Status: PENDING_GROUP_APPROVAL (AI mismatch: " + reason + ")");
 
-                int n = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
+                int members = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
+                int required = requiredApprovalCount(members);
                 String memberSummary = buildMemberEmailSummary(wallet.getGroup().getId());
                 auditLogService.log(AuditAction.TRANSACTION_GROUP_CONSENSUS_REQUESTED, email,
                         wallet.getGroup().getId(), tx.getId(),
-                        "Approval requests sent to all " + n + " group member(s) for this transaction. "
-                                + memberSummary);
+                        "Approval requests sent to all " + members + " group member(s); "
+                                + required + " approval(s) required (majority). " + memberSummary);
 
                 return toResponse(tx);
             }
@@ -98,22 +96,23 @@ public class TransactionService {
         } catch (Exception e) {
             tx.setStatus(TransactionStatus.PENDING_GROUP_APPROVAL);
             transactionRepository.save(tx);
-
             seedGroupConsensusApprovals(tx, wallet.getGroup().getId());
 
-            alertService.alertTransactionDeclined(tx, "AI validation unavailable — unanimous group approval required");
+            alertService.alertTransactionDeclined(tx, "AI validation unavailable — Awaiting manual approval");
 
             auditLogService.log(AuditAction.TRANSACTION_CREATED, email,
                     wallet.getGroup().getId(), tx.getId(),
                     "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
-                            + " on wallet '" + wallet.getName() + "' — Status: PENDING_GROUP_APPROVAL"
-                            + " (AI service unavailable; unanimous group approval required)");
+                            + " on wallet '" + wallet.getName() + "' — Status: " + tx.getStatus()
+                            + " (AI unavailable; majority group approval required)");
 
-            int n = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
+            int members = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
+            int required = requiredApprovalCount(members);
             String memberSummary = buildMemberEmailSummary(wallet.getGroup().getId());
             auditLogService.log(AuditAction.TRANSACTION_GROUP_CONSENSUS_REQUESTED, email,
                     wallet.getGroup().getId(), tx.getId(),
-                    "Approval requests sent to all " + n + " group member(s) for this transaction. " + memberSummary);
+                    "Approval requests sent to all " + members + " group member(s); "
+                            + required + " approval(s) required (majority). " + memberSummary);
 
             return toResponse(tx);
         }
@@ -156,6 +155,23 @@ public class TransactionService {
             row.setUser(membership.getUser());
             transactionGroupApprovalRepository.save(row);
         }
+    }
+
+    /** Majority threshold: ⌊memberCount/2⌋ + 1 (e.g. 5 members → 3 approvals). */
+    private int requiredApprovalCount(int memberCount) {
+        if (memberCount <= 0) {
+            return 1;
+        }
+        return (memberCount / 2) + 1;
+    }
+
+    private int requiredApprovalCount(UUID transactionId) {
+        return requiredApprovalCount((int) transactionGroupApprovalRepository.countByTransactionId(transactionId));
+    }
+
+    private boolean needsGroupConsensus(TransactionStatus status) {
+        return status == TransactionStatus.PENDING_GROUP_APPROVAL
+                || status == TransactionStatus.PENDING_MANUAL_APPROVAL;
     }
 
     public List<TransactionResponse> getWalletTransactions(UUID walletId) {
@@ -219,7 +235,7 @@ public class TransactionService {
             return toResponse(tx);
         }
 
-        if (tx.getStatus() == TransactionStatus.PENDING_GROUP_APPROVAL) {
+        if (needsGroupConsensus(tx.getStatus())) {
             User user = userRepository.findByEmail(email)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -233,17 +249,20 @@ public class TransactionService {
                 transactionGroupApprovalRepository.save(row);
             }
 
-            long required = transactionGroupApprovalRepository.countByTransactionId(txId);
+            int required = requiredApprovalCount(txId);
             long approved = transactionGroupApprovalRepository.countApprovedByTransactionId(txId);
 
-            if (required > 0 && approved >= required) {
+            if (approved >= required) {
                 tx.setStatus(TransactionStatus.APPROVED);
                 deductFromWalletHierarchy(tx.getWallet(), tx.getAmount());
                 transactionRepository.save(tx);
                 auditLogService.log(AuditAction.TRANSACTION_APPROVED, email,
                         tx.getWallet().getGroup().getId(), tx.getId(),
                         "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
-                                + " approved after unanimous group consensus (" + approved + "/" + required + ")");
+                                + " approved after group majority consensus (" + approved + "/" + required + ")");
+                alertService.sendGroupAlert(tx.getWallet().getGroup(),
+                        "Transaction Approved: €" + tx.getAmount() + " at " + tx.getMerchant(),
+                        "/groups/" + tx.getWallet().getGroup().getId());
             }
 
             return toResponse(tx);
@@ -279,7 +298,7 @@ public class TransactionService {
 
         UUID groupId = tx.getWallet().getGroup().getId();
 
-        if (tx.getStatus() == TransactionStatus.PENDING_GROUP_APPROVAL) {
+        if (needsGroupConsensus(tx.getStatus())) {
             if (!groupMembershipRepository.existsByUserEmailAndGroupId(email, groupId)) {
                 throw new BadRequestException("Only group members can decline this transaction");
             }
@@ -301,8 +320,8 @@ public class TransactionService {
     private TransactionResponse toResponse(Transaction tx) {
         Integer groupConsensusRequired = null;
         Integer groupConsensusApproved = null;
-        if (tx.getStatus() == TransactionStatus.PENDING_GROUP_APPROVAL) {
-            groupConsensusRequired = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
+        if (needsGroupConsensus(tx.getStatus())) {
+            groupConsensusRequired = requiredApprovalCount(tx.getId());
             groupConsensusApproved = (int) transactionGroupApprovalRepository.countApprovedByTransactionId(tx.getId());
         }
 

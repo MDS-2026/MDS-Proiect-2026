@@ -23,12 +23,14 @@ public class TransactionResponse {
     private LocalDateTime createdAt;
 
     /**
-     * Populated only when {@code status} is {@code PENDING_GROUP_APPROVAL}: total members who must approve.
+     * Populated when {@code status} is {@code PENDING_GROUP_APPROVAL} or {@code PENDING_MANUAL_APPROVAL}:
+     * approvals required for consensus (⌊memberCount/2⌋+1).
      */
     private Integer groupConsensusRequired;
 
     /**
-     * Populated only when {@code status} is {@code PENDING_GROUP_APPROVAL}: how many members have approved so far.
+     * Populated when {@code status} is {@code PENDING_GROUP_APPROVAL} or {@code PENDING_MANUAL_APPROVAL}:
+     * how many members have approved so far.
      */
     private Integer groupConsensusApproved;
 }

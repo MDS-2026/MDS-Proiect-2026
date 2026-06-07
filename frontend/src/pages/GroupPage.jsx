@@ -468,14 +468,14 @@ export default function GroupPage() {
                         <td style={{ color: 'var(--text-2)' }}>{tx.walletName}</td>
                         <td>
                           <span className={`badge badge-${txStatusBadgeClass(tx.status)}`}>{tx.status}</span>
-                          {tx.status === 'PENDING_GROUP_APPROVAL' && tx.groupConsensusRequired != null && (
+                          {(tx.status === 'PENDING_GROUP_APPROVAL' || tx.status === 'PENDING_MANUAL_APPROVAL') && tx.groupConsensusRequired != null && (
                             <div className="stat-sub" style={{ marginTop: 6 }}>
-                              Group approvals: {tx.groupConsensusApproved ?? 0}/{tx.groupConsensusRequired} (all must approve)
+                              Group approvals: {tx.groupConsensusApproved ?? 0}/{tx.groupConsensusRequired} (majority required)
                             </div>
                           )}
                         </td>
                         <td>
-                          {(tx.status === 'PENDING' || tx.status === 'PENDING_GROUP_APPROVAL') && (
+                          {(tx.status === 'PENDING' || tx.status === 'PENDING_GROUP_APPROVAL' || tx.status === 'PENDING_MANUAL_APPROVAL') && (
                             <div className="flex-gap">
                               <button className="btn btn-sm" onClick={async () => { await api.approveTransaction(tx.id); loadAll(); }}>Approve</button>
                               <button className="btn btn-sm btn-danger" onClick={async () => { await api.declineTransaction(tx.id); loadAll(); }}>Decline</button>
@@ -816,7 +816,7 @@ export default function GroupPage() {
 }
 
 function txStatusBadgeClass(status) {
-  if (status === 'PENDING_GROUP_APPROVAL') return 'pending';
+  if (status === 'PENDING_GROUP_APPROVAL' || status === 'PENDING_MANUAL_APPROVAL') return 'pending';
   return status.toLowerCase();
 }
 

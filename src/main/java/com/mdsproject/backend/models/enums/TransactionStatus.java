@@ -2,7 +2,7 @@ package com.mdsproject.backend.models.enums;
 
 public enum TransactionStatus {
     PENDING,
-    /** AI rejected (or AI unavailable); every group member must approve before the transaction is approved. */
+    /** AI rejected or unavailable; a majority of group members (⌊n/2⌋+1) must approve before the transaction is approved. */
     PENDING_GROUP_APPROVAL,
     APPROVED,
     DECLINED,
