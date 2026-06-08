@@ -111,30 +111,31 @@ export default function GroupPage() {
     } catch (err) { setError(err.message); }
   };
 
-  const handleCreateTx = async (e) => {
-    e.preventDefault();
+  const executeTransaction = async (walletId, amount, merchant, category) => {
     if (txSubmitting) return;
     setTxSubmitting(true);
     setTxError('');
-    console.log('handleCreateTx called', { txWalletId, txAmount, txMerchant, txCategory });
+    setTxWalletId(walletId);
+    setTxAmount(amount.toString());
+    setTxMerchant(merchant);
+    setTxCategory(category);
+    setShowTxModal(true);
+    setTxAiValidation(null);
     try {
       const validation = await api.validateTransaction({
-        walletId: txWalletId,
-        amount: parseFloat(txAmount),
-        merchant: txMerchant,
-        category: txCategory,
+        walletId,
+        amount: parseFloat(amount),
+        merchant,
+        category,
       });
-      console.log('AI validation result', validation);
       setTxAiValidation(validation);
 
-      const txResult = await api.createTransaction(txWalletId, {
-        amount: parseFloat(txAmount),
-        merchant: txMerchant,
-        category: txCategory,
+      await api.createTransaction(walletId, {
+        amount: parseFloat(amount),
+        merchant,
+        category,
       });
-      console.log('Transaction created', txResult);
 
-      // Small delay to show the AI result before closing
       setTimeout(() => {
         setShowTxModal(false);
         setTxAmount(''); setTxMerchant(''); setTxCategory('');
@@ -143,11 +144,24 @@ export default function GroupPage() {
         loadAll();
       }, 2000);
     } catch (err) {
-      console.error('Transaction error', err);
       setTxError(err.message);
     } finally {
       setTxSubmitting(false);
     }
+  };
+
+  const handleCreateTx = async (e) => {
+    e.preventDefault();
+    await executeTransaction(txWalletId, txAmount, txMerchant, txCategory);
+  };
+
+  const handleAddSuggestionTx = (suggestion) => {
+    setShowSuggestionsModal(false);
+    const walletId = shoppingSuggestions.walletId;
+    const amount = suggestion.estimatedPriceEur;
+    const merchant = suggestion.sourceName || suggestion.productName;
+    const category = shoppingSuggestions.walletPurpose || 'Shopping';
+    executeTransaction(walletId, amount, merchant, category);
   };
   const handleCreateWallet = async (e) => {
     e.preventDefault();
@@ -772,6 +786,14 @@ export default function GroupPage() {
                               )}
                             </>
                           )}
+                        </div>
+                        <div style={{ marginTop: 12 }}>
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => handleAddSuggestionTx(s)}
+                          >
+                            Add Transaction
+                          </button>
                         </div>
                       </li>
                     ))}

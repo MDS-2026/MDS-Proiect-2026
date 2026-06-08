@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.transaction.annotation.Transactional;
+
 /**
  * Central authority for wallet access control.
  *
@@ -37,6 +39,7 @@ import java.util.UUID;
  */
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class SubWalletAccessService {
 
     private final WalletRepository walletRepository;
