@@ -39,11 +39,14 @@ public class TransactionService {
     private final TransactionGroupApprovalRepository transactionGroupApprovalRepository;
     private final UserRepository userRepository;
     private final AlertService alertService;
+    private final PredictiveLiquidityService predictiveLiquidityService;
 
     @Transactional
     public TransactionResponse createTransaction(UUID walletId, CreateTransactionRequest request, String email) {
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new ResourceNotFoundException("Wallet not found"));
+
+        UUID groupId = wallet.getGroup().getId();
 
         Transaction tx = new Transaction();
         tx.setAmount(request.getAmount());
@@ -82,6 +85,9 @@ public class TransactionService {
                         "Approval requests sent to all " + members + " group member(s); "
                                 + required + " approval(s) required (majority). " + memberSummary);
 
+                // Predictive Liquidity Agent: new unsettled obligation — warn if cash will fall short.
+                predictiveLiquidityService.checkAndWarn(groupId);
+
                 return toResponse(tx);
             }
 
@@ -114,6 +120,9 @@ public class TransactionService {
                     "Approval requests sent to all " + members + " group member(s); "
                             + required + " approval(s) required (majority). " + memberSummary);
 
+            // Predictive Liquidity Agent: new unsettled obligation — warn if cash will fall short.
+            predictiveLiquidityService.checkAndWarn(groupId);
+
             return toResponse(tx);
         }
 
@@ -135,6 +144,9 @@ public class TransactionService {
             alertService.alertTransactionDeclined(tx,
                     "New transaction pending approval: €" + tx.getAmount() + " at " + tx.getMerchant());
         }
+
+        // Predictive Liquidity Agent: warn the group if this transaction risks a cash shortfall.
+        predictiveLiquidityService.checkAndWarn(groupId);
 
         return toResponse(tx);
     }
