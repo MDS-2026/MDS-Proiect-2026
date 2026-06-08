@@ -23,7 +23,7 @@ public class ChatMessage extends BaseEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "message_type", nullable = false)
+    @Column(name = "message_type", nullable = false, columnDefinition = "varchar(255) default 'TEXT'")
     private String messageType = "TEXT";
 
     @Column(columnDefinition = "TEXT")
