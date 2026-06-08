@@ -17,22 +17,19 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
- * Central authority for Root Wallet / Sub-wallet access control.
+ * Central authority for wallet access control.
  *
- * <p>Rules (see feature spec):</p>
+ * <p>The group itself is the conceptual root; every {@link Wallet} is a membership-scoped
+ * sub-wallet. Rules:</p>
  * <ul>
- *   <li><b>Admin</b> — absolute access to the Root Wallet and ALL Sub-wallets.</li>
- *   <li><b>Sub-wallet member</b> — full active access (chat, approvals, spending) ONLY in
- *       the sub-wallets they are assigned to; full access to the Root Wallet.</li>
- *   <li><b>Non-member of a sub-wallet</b> — read-only visibility of that sub-wallet's
- *       ledger; no chat, no approvals.</li>
+ *   <li><b>Admin</b> — absolute access to ALL wallets in the group.</li>
+ *   <li><b>Assigned member</b> — full active access (chat, approvals, spending) ONLY in
+ *       the wallets they are assigned to (via {@link SubWalletMembership}).</li>
+ *   <li><b>Non-member of a wallet</b> — read-only visibility of that wallet's ledger;
+ *       no chat, no approvals.</li>
  * </ul>
- *
- * <p>The Root Wallet (a wallet with no parent) is implicitly accessible to every group
- * member, so no explicit {@link SubWalletMembership} rows are needed for it.</p>
  */
 @Service
 @RequiredArgsConstructor
@@ -53,9 +50,13 @@ public class SubWalletAccessService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
-    /** A sub-wallet is any wallet nested under a parent. */
+    /**
+     * The group itself is the conceptual root, so every {@link Wallet} entity is a
+     * membership-scoped sub-wallet — there is no distinct "root wallet" that bypasses
+     * member assignment. Kept as a method so callers/DTOs read clearly.
+     */
     public boolean isSubWallet(Wallet wallet) {
-        return wallet.getParentWallet() != null;
+        return wallet != null;
     }
 
     public boolean isGroupAdmin(String email, UUID groupId) {
@@ -70,16 +71,15 @@ public class SubWalletAccessService {
 
     /**
      * Can the user fully participate in this wallet — i.e. chat, approve and spend?
-     * Root wallet: every group member. Sub-wallet: assigned members plus group admins.
+     * Group admins plus the members explicitly assigned to the wallet.
      */
     public boolean canParticipate(String email, Wallet wallet) {
         UUID groupId = wallet.getGroup().getId();
         if (!isGroupMember(email, groupId)) {
             return false;
         }
-        if (!isSubWallet(wallet)) {
-            return true; // root wallet — open to all group members
-        }
+        // Every wallet is membership-scoped: only group admins (absolute access) and
+        // explicitly assigned members may fully participate.
         return isGroupAdmin(email, groupId)
                 || subWalletMembershipRepository.existsByWallet_IdAndUser_Email(wallet.getId(), email);
     }
@@ -93,16 +93,14 @@ public class SubWalletAccessService {
     }
 
     /**
-     * The set of users eligible to approve / decline a transaction on this wallet.
-     * Root wallet: all group members. Sub-wallet: assigned members plus group admins.
+     * The set of users eligible to approve / decline a transaction on this wallet:
+     * the group admins plus the members explicitly assigned to the wallet.
      */
     public List<User> eligibleApprovers(Wallet wallet) {
         List<GroupMembership> groupMembers = groupMembershipRepository.findByGroupId(wallet.getGroup().getId());
 
-        if (!isSubWallet(wallet)) {
-            return groupMembers.stream().map(GroupMembership::getUser).collect(Collectors.toList());
-        }
-
+        // Every wallet is membership-scoped: approvers are the group admins plus the
+        // members explicitly assigned to this wallet.
         // Use a set keyed by user id to merge admins + assigned members without duplicates.
         Set<UUID> seen = new LinkedHashSet<>();
         java.util.List<User> result = new java.util.ArrayList<>();

@@ -37,9 +37,6 @@ public class SubWalletMembershipService {
         UUID groupId = wallet.getGroup().getId();
 
         accessService.assertIsAdmin(actingEmail, groupId);
-        if (!accessService.isSubWallet(wallet)) {
-            throw new BadRequestException("Members can only be assigned to a sub-wallet, not the root wallet.");
-        }
 
         for (UUID userId : userIds) {
             User user = userRepository.findById(userId)
@@ -73,9 +70,6 @@ public class SubWalletMembershipService {
         UUID groupId = wallet.getGroup().getId();
 
         accessService.assertIsAdmin(actingEmail, groupId);
-        if (!accessService.isSubWallet(wallet)) {
-            throw new BadRequestException("The root wallet has no removable member assignments.");
-        }
         if (!subWalletMembershipRepository.existsByWallet_IdAndUser_Id(walletId, userId)) {
             throw new ResourceNotFoundException("User is not assigned to this sub-wallet.");
         }
