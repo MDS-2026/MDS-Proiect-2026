@@ -52,78 +52,42 @@ public class TransactionService {
         tx.setCategory(request.getCategory());
         tx.setWallet(wallet);
 
+        // Only the AI call may fail recoverably (service down / timeout). Persistence errors must
+        // surface to the caller and the logs, so we wrap ONLY the AI call — never the DB writes.
+        // (Previously the whole flow was in the try; an error after the first save was caught and
+        //  the approval set was seeded a second time, masking the real cause behind a generic 500.)
+        boolean valid;
         try {
-            boolean valid = aiValidationService.validateTransaction(
+            valid = aiValidationService.validateTransaction(
                     wallet,
                     request.getMerchant(),
                     request.getCategory(),
                     request.getAmount(),
                     email);
-
-            if (!valid) {
-                // AI mismatch: trimite la aprobare de grup, nu DECLINED
-                tx.setStatus(TransactionStatus.PENDING_GROUP_APPROVAL);
-                transactionRepository.save(tx);
-                seedGroupConsensusApprovals(tx, wallet);
-
-                String reason = aiValidationService.getValidationReason(wallet, request.getMerchant(), request.getCategory());
-                alertService.alertTransactionDeclined(tx, "AI Warning: " + reason + " — Group approval required");
-
-                auditLogService.log(AuditAction.TRANSACTION_CREATED, email,
-                        wallet.getGroup().getId(), tx.getId(),
-                        "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
-                                + " on wallet '" + wallet.getName()
-                                + "' — Status: PENDING_GROUP_APPROVAL (AI mismatch: " + reason + ")");
-
-                int members = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
-                int required = requiredApprovalCount(members);
-                String memberSummary = buildMemberEmailSummary(wallet);
-                auditLogService.log(AuditAction.TRANSACTION_GROUP_CONSENSUS_REQUESTED, email,
-                        wallet.getGroup().getId(), tx.getId(),
-                        "Approval requests sent to all " + members + " group member(s); "
-                                + required + " approval(s) required (majority). " + memberSummary);
-
-                // Predictive Liquidity Agent: new unsettled obligation — warn if cash will fall short.
-                predictiveLiquidityService.checkAndWarn(groupId);
-
-                return toResponse(tx);
-            }
-
-            // Auto-approve dacă suma e sub prag
-            if (request.getAmount() <= wallet.getAutoApproveThreshold()) {
-                tx.setStatus(TransactionStatus.APPROVED);
-                deductFromWalletHierarchy(wallet, request.getAmount());
-            } else {
-                tx.setStatus(TransactionStatus.PENDING);
-            }
-
         } catch (Exception e) {
-            tx.setStatus(TransactionStatus.PENDING_GROUP_APPROVAL);
-            transactionRepository.save(tx);
-            seedGroupConsensusApprovals(tx, wallet);
-
-            alertService.alertTransactionDeclined(tx, "AI validation unavailable — Awaiting manual approval");
-
-            auditLogService.log(AuditAction.TRANSACTION_CREATED, email,
-                    wallet.getGroup().getId(), tx.getId(),
+            // AI unavailable: route to majority group approval rather than failing the request.
+            routeToGroupApproval(tx, wallet, email,
+                    "AI validation unavailable — Awaiting manual approval",
                     "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
-                            + " on wallet '" + wallet.getName() + "' — Status: " + tx.getStatus()
+                            + " on wallet '" + wallet.getName() + "' — Status: PENDING_GROUP_APPROVAL"
                             + " (AI unavailable; majority group approval required)");
-
-            int members = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
-            int required = requiredApprovalCount(members);
-            String memberSummary = buildMemberEmailSummary(wallet);
-            auditLogService.log(AuditAction.TRANSACTION_GROUP_CONSENSUS_REQUESTED, email,
-                    wallet.getGroup().getId(), tx.getId(),
-                    "Approval requests sent to all " + members + " group member(s); "
-                            + required + " approval(s) required (majority). " + memberSummary);
-
-            // Predictive Liquidity Agent: new unsettled obligation — warn if cash will fall short.
             predictiveLiquidityService.checkAndWarn(groupId);
-
             return toResponse(tx);
         }
 
+        if (!valid) {
+            // AI mismatch: route to group approval, not DECLINED.
+            String reason = aiValidationService.getValidationReason(wallet, request.getMerchant(), request.getCategory());
+            routeToGroupApproval(tx, wallet, email,
+                    "AI Warning: " + reason + " — Group approval required",
+                    "Transaction of €" + tx.getAmount() + " at " + tx.getMerchant()
+                            + " on wallet '" + wallet.getName()
+                            + "' — Status: PENDING_GROUP_APPROVAL (AI mismatch: " + reason + ")");
+            predictiveLiquidityService.checkAndWarn(groupId);
+            return toResponse(tx);
+        }
+
+        // AI approved: auto-approve under the wallet threshold, otherwise single-step pending approval.
         if (request.getAmount() <= wallet.getAutoApproveThreshold()) {
             tx.setStatus(TransactionStatus.APPROVED);
             deductFromWalletHierarchy(wallet, request.getAmount());
@@ -147,6 +111,32 @@ public class TransactionService {
         predictiveLiquidityService.checkAndWarn(groupId);
 
         return toResponse(tx);
+    }
+
+    /**
+     * Persists a transaction that requires majority group consensus: seeds the approval set,
+     * alerts members and writes the audit trail. Shared by the AI-mismatch and AI-unavailable
+     * paths. Any persistence failure here propagates (and is logged at the API boundary) instead
+     * of being swallowed.
+     */
+    private void routeToGroupApproval(Transaction tx, Wallet wallet, String email,
+                                      String alertReason, String createdAuditDetail) {
+        tx.setStatus(TransactionStatus.PENDING_GROUP_APPROVAL);
+        transactionRepository.save(tx);
+        seedGroupConsensusApprovals(tx, wallet);
+
+        alertService.alertTransactionDeclined(tx, alertReason);
+
+        auditLogService.log(AuditAction.TRANSACTION_CREATED, email,
+                wallet.getGroup().getId(), tx.getId(), createdAuditDetail);
+
+        int members = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
+        int required = requiredApprovalCount(members);
+        String memberSummary = buildMemberEmailSummary(wallet);
+        auditLogService.log(AuditAction.TRANSACTION_GROUP_CONSENSUS_REQUESTED, email,
+                wallet.getGroup().getId(), tx.getId(),
+                "Approval requests sent to all " + members + " group member(s); "
+                        + required + " approval(s) required (majority). " + memberSummary);
     }
 
     private String buildMemberEmailSummary(Wallet wallet) {
