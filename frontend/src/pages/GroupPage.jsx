@@ -231,9 +231,17 @@ export default function GroupPage() {
     const icon = getIconForPurpose(node.purpose);
     const delay = depth * 0.15; // 150ms stagger per depth level
 
+    const clickable = !isRoot && node.id !== 'trip-root';
+    const openWallet = () => { if (clickable) navigate(`/groups/${id}/wallets/${node.id}`); };
+
     return (
       <div key={node.id} className={`tree-node ${isRoot ? 'root-node' : ''}`} style={{ animationDelay: `${delay}s` }}>
-        <div className="tree-card">
+        <div
+          className="tree-card"
+          onClick={openWallet}
+          style={clickable ? { cursor: 'pointer' } : undefined}
+          title={clickable ? 'Open wallet' : undefined}
+        >
           <div className="tree-card-header">
             <div className="tree-card-title-wrap">
               <div className="tree-card-icon">{icon}</div>
@@ -242,6 +250,7 @@ export default function GroupPage() {
                 <div className="tree-card-purpose">{node.purpose || 'General'}</div>
               </div>
             </div>
+            {clickable && <span style={{ color: 'var(--text-2)', fontSize: 12 }}>Open →</span>}
           </div>
           <div className="tree-card-stats">
             <div className="tree-stat">

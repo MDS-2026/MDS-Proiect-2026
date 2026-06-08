@@ -16,4 +16,7 @@ public interface DemocracySessionRepository extends JpaRepository<DemocracySessi
             UUID groupId, java.util.List<DemocracySessionStatus> statuses);
 
     boolean existsByGroupIdAndStatusIn(UUID groupId, java.util.List<DemocracySessionStatus> statuses);
+
+    java.util.List<DemocracySession> findByGroupIdAndStatusIn(
+            UUID groupId, java.util.List<DemocracySessionStatus> statuses);
 }

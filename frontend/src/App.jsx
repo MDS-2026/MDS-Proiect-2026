@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import GroupPage from './pages/GroupPage';
+import SubWalletPage from './pages/SubWalletPage';
 import api from './api';
 import './index.css';
 
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
         <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
         <Route path="/groups/:id" element={<ProtectedRoute><GroupPage /></ProtectedRoute>} />
+        <Route path="/groups/:id/wallets/:walletId" element={<ProtectedRoute><SubWalletPage /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );

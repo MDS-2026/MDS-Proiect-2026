@@ -90,6 +90,15 @@ const api = {
   // Chat
   getChatHistory: (groupId) => request(`/groups/${groupId}/chat`),
 
+  // Sub-wallets (nested wallets with their own members, card and isolated chat)
+  getSubWalletAccess: (walletId) => request(`/wallets/${walletId}/access`),
+  getSubWalletMembers: (walletId) => request(`/wallets/${walletId}/members`),
+  assignSubWalletMembers: (walletId, userIds) =>
+    request(`/wallets/${walletId}/members`, { method: 'POST', body: JSON.stringify({ userIds }) }),
+  removeSubWalletMember: (walletId, userId) =>
+    request(`/wallets/${walletId}/members/${userId}`, { method: 'DELETE' }),
+  getSubWalletChatHistory: (walletId) => request(`/wallets/${walletId}/chat`),
+
   // Democracy Agent
   getDemocracyDm: (groupId) => request(`/groups/${groupId}/democracy/dm`),
   submitDemocracyConstraints: (groupId, data) =>
