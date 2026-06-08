@@ -6,14 +6,12 @@ import com.mdsproject.backend.dto.transaction.ValidateTransactionRequest;
 import com.mdsproject.backend.dto.transaction.ValidateTransactionResponse;
 import com.mdsproject.backend.exceptions.BadRequestException;
 import com.mdsproject.backend.exceptions.ResourceNotFoundException;
-import com.mdsproject.backend.models.GroupMembership;
 import com.mdsproject.backend.models.Transaction;
 import com.mdsproject.backend.models.TransactionGroupApproval;
 import com.mdsproject.backend.models.User;
 import com.mdsproject.backend.models.Wallet;
 import com.mdsproject.backend.models.enums.AuditAction;
 import com.mdsproject.backend.models.enums.TransactionStatus;
-import com.mdsproject.backend.repositories.GroupMembershipRepository;
 import com.mdsproject.backend.repositories.TransactionGroupApprovalRepository;
 import com.mdsproject.backend.repositories.TransactionRepository;
 import com.mdsproject.backend.repositories.UserRepository;
@@ -35,11 +33,11 @@ public class TransactionService {
     private final WalletRepository walletRepository;
     private final AuditLogService auditLogService;
     private final AiValidationService aiValidationService;
-    private final GroupMembershipRepository groupMembershipRepository;
     private final TransactionGroupApprovalRepository transactionGroupApprovalRepository;
     private final UserRepository userRepository;
     private final AlertService alertService;
     private final PredictiveLiquidityService predictiveLiquidityService;
+    private final SubWalletAccessService subWalletAccessService;
 
     @Transactional
     public TransactionResponse createTransaction(UUID walletId, CreateTransactionRequest request, String email) {
@@ -66,7 +64,7 @@ public class TransactionService {
                 // AI mismatch: trimite la aprobare de grup, nu DECLINED
                 tx.setStatus(TransactionStatus.PENDING_GROUP_APPROVAL);
                 transactionRepository.save(tx);
-                seedGroupConsensusApprovals(tx, wallet.getGroup().getId());
+                seedGroupConsensusApprovals(tx, wallet);
 
                 String reason = aiValidationService.getValidationReason(wallet, request.getMerchant(), request.getCategory());
                 alertService.alertTransactionDeclined(tx, "AI Warning: " + reason + " — Group approval required");
@@ -79,7 +77,7 @@ public class TransactionService {
 
                 int members = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
                 int required = requiredApprovalCount(members);
-                String memberSummary = buildMemberEmailSummary(wallet.getGroup().getId());
+                String memberSummary = buildMemberEmailSummary(wallet);
                 auditLogService.log(AuditAction.TRANSACTION_GROUP_CONSENSUS_REQUESTED, email,
                         wallet.getGroup().getId(), tx.getId(),
                         "Approval requests sent to all " + members + " group member(s); "
@@ -102,7 +100,7 @@ public class TransactionService {
         } catch (Exception e) {
             tx.setStatus(TransactionStatus.PENDING_GROUP_APPROVAL);
             transactionRepository.save(tx);
-            seedGroupConsensusApprovals(tx, wallet.getGroup().getId());
+            seedGroupConsensusApprovals(tx, wallet);
 
             alertService.alertTransactionDeclined(tx, "AI validation unavailable — Awaiting manual approval");
 
@@ -114,7 +112,7 @@ public class TransactionService {
 
             int members = (int) transactionGroupApprovalRepository.countByTransactionId(tx.getId());
             int required = requiredApprovalCount(members);
-            String memberSummary = buildMemberEmailSummary(wallet.getGroup().getId());
+            String memberSummary = buildMemberEmailSummary(wallet);
             auditLogService.log(AuditAction.TRANSACTION_GROUP_CONSENSUS_REQUESTED, email,
                     wallet.getGroup().getId(), tx.getId(),
                     "Approval requests sent to all " + members + " group member(s); "
@@ -151,20 +149,23 @@ public class TransactionService {
         return toResponse(tx);
     }
 
-    private String buildMemberEmailSummary(UUID groupId) {
-        List<GroupMembership> members = groupMembershipRepository.findByGroupId(groupId);
-        String emails = members.stream()
-                .map(m -> m.getUser().getEmail())
+    private String buildMemberEmailSummary(Wallet wallet) {
+        String emails = subWalletAccessService.eligibleApprovers(wallet).stream()
+                .map(User::getEmail)
                 .collect(Collectors.joining(", "));
         return "Members: " + emails + ".";
     }
 
-    private void seedGroupConsensusApprovals(Transaction tx, UUID groupId) {
-        List<GroupMembership> members = groupMembershipRepository.findByGroupId(groupId);
-        for (GroupMembership membership : members) {
+    /**
+     * Seeds the approval set with the wallet's eligible approvers. For a root wallet this is
+     * every group member; for a sub-wallet only its assigned members plus group admins — so
+     * outsiders cannot approve a sub-wallet's transactions.
+     */
+    private void seedGroupConsensusApprovals(Transaction tx, Wallet wallet) {
+        for (User user : subWalletAccessService.eligibleApprovers(wallet)) {
             TransactionGroupApproval row = new TransactionGroupApproval();
             row.setTransaction(tx);
-            row.setUser(membership.getUser());
+            row.setUser(user);
             transactionGroupApprovalRepository.save(row);
         }
     }
@@ -311,8 +312,8 @@ public class TransactionService {
         UUID groupId = tx.getWallet().getGroup().getId();
 
         if (needsGroupConsensus(tx.getStatus())) {
-            if (!groupMembershipRepository.existsByUserEmailAndGroupId(email, groupId)) {
-                throw new BadRequestException("Only group members can decline this transaction");
+            if (!subWalletAccessService.canParticipate(email, tx.getWallet())) {
+                throw new BadRequestException("Only active members of this wallet can decline this transaction");
             }
         }
 

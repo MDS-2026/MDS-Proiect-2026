@@ -62,8 +62,20 @@ public class DemocracyAgentService {
 
     @Transactional
     public void handleTrigger(UUID groupId, String goalText) {
-        if (sessionRepository.existsByGroupIdAndStatusIn(groupId, ACTIVE_STATUSES)) {
-            return; // already an active session for this group
+        List<DemocracySession> active = sessionRepository.findByGroupIdAndStatusIn(groupId, ACTIVE_STATUSES);
+
+        // A session still gathering input or generating proposals is genuinely in progress,
+        // so defer to it. A session left in VOTING (proposals already published) should not
+        // block forever — close it so this new request can start a fresh vote.
+        boolean setupInProgress = active.stream().anyMatch(s ->
+                s.getStatus() == DemocracySessionStatus.COLLECTING
+                        || s.getStatus() == DemocracySessionStatus.PROPOSING);
+        if (setupInProgress) {
+            return;
+        }
+        for (DemocracySession stale : active) {
+            stale.setStatus(DemocracySessionStatus.CLOSED);
+            sessionRepository.save(stale);
         }
 
         List<GroupMembership> memberships = membershipRepository.findByGroupId(groupId);
@@ -185,7 +197,50 @@ public class DemocracyAgentService {
 
         Map<String, Object> voteState = buildVoteState(session);
         broadcastVoteUpdate(groupId, sessionId, voteState);
+
+        // Once everyone has voted, close the session and announce the winner. This also
+        // frees the group so the Democracy Agent can be triggered again for a new request.
+        long totalVotes = voteRepository.findBySessionId(sessionId).size();
+        if (totalVotes >= session.getMemberCount()) {
+            closeSessionWithResult(session, voteState);
+        }
         return voteState;
+    }
+
+    private void closeSessionWithResult(DemocracySession session, Map<String, Object> voteState) {
+        session.setStatus(DemocracySessionStatus.CLOSED);
+        sessionRepository.save(session);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Long> votes = (Map<String, Long>) voteState.get("votes");
+        int winnerIdx = 0;
+        long best = -1;
+        for (int i = 0; i < 3; i++) {
+            long count = votes != null ? votes.getOrDefault(String.valueOf(i), 0L) : 0L;
+            if (count > best) {
+                best = count;
+                winnerIdx = i;
+            }
+        }
+
+        String title = optionTitle(session, winnerIdx);
+        String content = String.format(
+                "🏆 Voting closed! Winner: Option %s — %s (%d vote%s). " +
+                        "The Democracy Agent is ready for the next request.",
+                (char) ('A' + winnerIdx), title, best, best == 1 ? "" : "s");
+        broadcastAgentMessage(session.getGroupId(), content, "DEMOCRACY_PROGRESS", null);
+    }
+
+    private String optionTitle(DemocracySession session, int idx) {
+        try {
+            JsonNode options = objectMapper.readTree(session.getProposalsJson()).path("options");
+            if (options.isArray() && idx < options.size()) {
+                return options.get(idx).path("title").asText("Option " + (idx + 1));
+            }
+        } catch (Exception ignored) {
+            // fall through to default label
+        }
+        return "Option " + (idx + 1);
     }
 
     public Map<String, Object> getSessionState(UUID groupId, String requesterEmail) {

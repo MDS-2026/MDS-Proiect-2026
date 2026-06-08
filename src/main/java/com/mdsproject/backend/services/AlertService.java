@@ -53,6 +53,19 @@ public class AlertService {
         }
     }
 
+    /**
+     * Notifies only the given recipients (e.g. the members of an isolated sub-wallet chat),
+     * never leaking the message to the rest of the root-wallet group.
+     */
+    public void notifyUsers(List<User> recipients, User sender, FairPayGroup group,
+                            String message, String targetUrl) {
+        for (User member : recipients) {
+            if (sender == null || !member.getId().equals(sender.getId())) {
+                sendNotificationToMember(member, message, group, targetUrl);
+            }
+        }
+    }
+
     private void sendNotificationToMember(User member, String alertMessage, FairPayGroup group, String targetUrl) {
         Notification notification = new Notification();
         notification.setUser(member);

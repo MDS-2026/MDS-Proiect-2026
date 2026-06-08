@@ -8,7 +8,19 @@ import DemocracyProposalMessage from './DemocracyProposalMessage';
 const WS_URL = 'http://localhost:8080/ws';
 const AGENT_EMAIL = 'democracy-agent@fairpay.internal';
 
-export default function GroupChat({ groupId }) {
+export default function GroupChat({ groupId, channelId, variant = 'group' }) {
+  // For a normal group the chat channel is the group id; for a sub-wallet it is the
+  // wallet id, driving the isolated /topic/wallet-chat/{walletId} destinations.
+  const isSub = variant === 'subwallet';
+  const channel = channelId || groupId;
+  const topic = isSub ? `/topic/wallet-chat/${channel}` : `/topic/chat/${channel}`;
+  const destination = isSub ? `/app/wallet-chat/${channel}` : `/app/chat/${channel}`;
+  const democracyOn = !isSub;
+  const headerTitle = isSub ? '💬 Sub-wallet Chat' : '💬 Group Chat';
+  const loadHistory = isSub
+    ? () => api.getSubWalletChatHistory(channel)
+    : () => api.getChatHistory(channel);
+
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
@@ -20,19 +32,20 @@ export default function GroupChat({ groupId }) {
 
   // Load chat history on mount
   useEffect(() => {
-    api.getChatHistory(groupId)
-      .then(setMessages)
+    loadHistory()
+      .then((m) => setMessages(m || []))
       .catch(() => setMessages([]));
-  }, [groupId]);
+  }, [channel, variant]);
 
-  // Check for pending Democracy Agent DM on mount
+  // Check for pending Democracy Agent DM on mount (group chat only)
   useEffect(() => {
+    if (!democracyOn) return;
     api.getDemocracyDm(groupId)
       .then((dm) => {
         if (dm?.pending) setDmPending({ sessionId: dm.sessionId, goalText: dm.goalText });
       })
       .catch(() => {});
-  }, [groupId]);
+  }, [groupId, democracyOn]);
 
   // Auto-scroll when messages change
   useEffect(() => {
@@ -60,12 +73,12 @@ export default function GroupChat({ groupId }) {
     setMessages((prev) => [...prev, msg]);
 
     // Show DM modal when democracy trigger happens for current user
-    if (msg.messageType === 'DEMOCRACY_TRIGGER' && msg.senderEmail === AGENT_EMAIL) {
+    if (democracyOn && msg.messageType === 'DEMOCRACY_TRIGGER' && msg.senderEmail === AGENT_EMAIL) {
       api.getDemocracyDm(groupId)
         .then((dm) => { if (dm?.pending) setDmPending({ sessionId: dm.sessionId, goalText: dm.goalText }); })
         .catch(() => {});
     }
-  }, [groupId]);
+  }, [groupId, democracyOn]);
 
   // Connect WebSocket
   useEffect(() => {
@@ -79,7 +92,7 @@ export default function GroupChat({ groupId }) {
       onConnect: () => {
         setConnected(true);
         setError('');
-        client.subscribe(`/topic/chat/${groupId}`, (frame) => {
+        client.subscribe(topic, (frame) => {
           const msg = JSON.parse(frame.body);
           handleIncomingMessage(msg);
         });
@@ -91,7 +104,7 @@ export default function GroupChat({ groupId }) {
     client.activate();
     clientRef.current = client;
     return () => { client.deactivate(); };
-  }, [groupId, handleIncomingMessage]);
+  }, [topic, handleIncomingMessage]);
 
   const handleSend = useCallback(
     (e) => {
@@ -99,12 +112,12 @@ export default function GroupChat({ groupId }) {
       const text = input.trim();
       if (!text || !clientRef.current?.connected) return;
       clientRef.current.publish({
-        destination: `/app/chat/${groupId}`,
+        destination,
         body: JSON.stringify({ content: text }),
       });
       setInput('');
     },
-    [input, groupId]
+    [input, destination]
   );
 
   const handleVoted = useCallback((sessionId, updatedVoteState) => {
@@ -207,7 +220,7 @@ export default function GroupChat({ groupId }) {
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerLeft}>
-          <span style={styles.headerTitle}>💬 Group Chat</span>
+          <span style={styles.headerTitle}>{headerTitle}</span>
           <span style={{ ...styles.statusDot, background: connected ? '#10b981' : '#6b7280' }} />
           <span style={styles.statusText}>{connected ? 'Live' : 'Connecting...'}</span>
         </div>
