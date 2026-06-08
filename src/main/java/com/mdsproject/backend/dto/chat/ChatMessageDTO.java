@@ -16,4 +16,6 @@ public class ChatMessageDTO {
     private String senderEmail;
     private String content;
     private LocalDateTime createdAt;
+    private String messageType;
+    private String metadata;
 }
