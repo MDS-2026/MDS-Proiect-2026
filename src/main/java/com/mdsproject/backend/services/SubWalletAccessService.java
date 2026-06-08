@@ -13,6 +13,7 @@ import com.mdsproject.backend.repositories.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -24,7 +25,10 @@ import java.util.UUID;
  * <p>The group itself is the conceptual root; every {@link Wallet} is a membership-scoped
  * sub-wallet. Rules:</p>
  * <ul>
- *   <li><b>Admin</b> — absolute access to ALL wallets in the group.</li>
+ *   <li><b>Admin</b> — absolute access to ALL wallets in the group for management
+ *       (chat, spending, oversight). Transaction <em>approval</em>, however, is
+ *       membership-scoped: an admin may approve a sub-wallet's transactions only if they
+ *       are themselves an assigned member of that sub-wallet.</li>
  *   <li><b>Assigned member</b> — full active access (chat, approvals, spending) ONLY in
  *       the wallets they are assigned to (via {@link SubWalletMembership}).</li>
  *   <li><b>Non-member of a wallet</b> — read-only visibility of that wallet's ledger;
@@ -93,26 +97,47 @@ public class SubWalletAccessService {
     }
 
     /**
-     * The set of users eligible to approve / decline a transaction on this wallet:
-     * the group admins plus the members explicitly assigned to the wallet.
+     * The set of users eligible to approve / decline a transaction on this wallet.
+     * <ul>
+     *   <li><b>Root wallet</b> (no parent): every group member — root-wallet membership is
+     *       implied by {@link GroupMembership}.</li>
+     *   <li><b>Sub-wallet</b>: ONLY the members explicitly assigned to it via
+     *       {@link SubWalletMembership}. Group admins are NOT automatically eligible — an
+     *       admin can approve a sub-wallet's transactions only if they are an assigned
+     *       member, so they cannot approve every sub-wallet by virtue of being admin.</li>
+     * </ul>
      */
     public List<User> eligibleApprovers(Wallet wallet) {
-        List<GroupMembership> groupMembers = groupMembershipRepository.findByGroupId(wallet.getGroup().getId());
-
-        // Every wallet is membership-scoped: approvers are the group admins plus the
-        // members explicitly assigned to this wallet.
-        // Use a set keyed by user id to merge admins + assigned members without duplicates.
+        // Use a set keyed by user id to avoid duplicates.
         Set<UUID> seen = new LinkedHashSet<>();
-        java.util.List<User> result = new java.util.ArrayList<>();
+        List<User> result = new ArrayList<>();
 
-        for (GroupMembership m : groupMembers) {
-            if (m.getRole() == Role.ADMIN && seen.add(m.getUser().getId())) {
-                result.add(m.getUser());
+        if (wallet.getParentWallet() == null) {
+            // Root wallet: membership is implied by group membership.
+            for (GroupMembership m : groupMembershipRepository.findByGroupId(wallet.getGroup().getId())) {
+                if (seen.add(m.getUser().getId())) {
+                    result.add(m.getUser());
+                }
+            }
+        } else {
+            // Sub-wallet: only the explicitly assigned members may approve. Admins are
+            // included here only if they were assigned as members of this sub-wallet.
+            for (SubWalletMembership sm : subWalletMembershipRepository.findByWallet_Id(wallet.getId())) {
+                if (seen.add(sm.getUser().getId())) {
+                    result.add(sm.getUser());
+                }
             }
         }
-        for (SubWalletMembership sm : subWalletMembershipRepository.findByWallet_Id(wallet.getId())) {
-            if (seen.add(sm.getUser().getId())) {
-                result.add(sm.getUser());
+        return result;
+    }
+
+    /** All group admins — they retain absolute oversight/visibility of every wallet. */
+    public List<User> groupAdmins(UUID groupId) {
+        Set<UUID> seen = new LinkedHashSet<>();
+        List<User> result = new ArrayList<>();
+        for (GroupMembership m : groupMembershipRepository.findByGroupId(groupId)) {
+            if (m.getRole() == Role.ADMIN && seen.add(m.getUser().getId())) {
+                result.add(m.getUser());
             }
         }
         return result;

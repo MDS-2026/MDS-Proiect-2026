@@ -89,10 +89,10 @@ public class SubWalletMembershipService {
         Set<UUID> seen = new LinkedHashSet<>();
         List<SubWalletMemberResponse> result = new ArrayList<>();
 
-        // Admins always have absolute access to every sub-wallet.
-        for (User admin : accessService.eligibleApprovers(wallet)) {
-            boolean isAdmin = accessService.isGroupAdmin(admin.getEmail(), groupId);
-            if (isAdmin && seen.add(admin.getId())) {
+        // Admins always have absolute oversight access to every sub-wallet (listed here),
+        // but they are NOT automatic transaction approvers unless also assigned below.
+        for (User admin : accessService.groupAdmins(groupId)) {
+            if (seen.add(admin.getId())) {
                 result.add(new SubWalletMemberResponse(admin.getId(), admin.getEmail(), true));
             }
         }
