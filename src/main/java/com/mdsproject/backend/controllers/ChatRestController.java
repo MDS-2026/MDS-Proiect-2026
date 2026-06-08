@@ -46,7 +46,9 @@ public class ChatRestController {
                         m.getGroupId(),
                         m.getSenderEmail(),
                         m.getContent(),
-                        m.getCreatedAt()))
+                        m.getCreatedAt(),
+                        m.getMessageType(),
+                        m.getMetadata()))
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(history);

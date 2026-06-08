@@ -90,6 +90,17 @@ const api = {
   // Chat
   getChatHistory: (groupId) => request(`/groups/${groupId}/chat`),
 
+  // Democracy Agent
+  getDemocracyDm: (groupId) => request(`/groups/${groupId}/democracy/dm`),
+  submitDemocracyConstraints: (groupId, data) =>
+    request(`/groups/${groupId}/democracy/constraints`, { method: 'POST', body: JSON.stringify(data) }),
+  castDemocracyVote: (groupId, sessionId, optionIndex) =>
+    request(`/groups/${groupId}/democracy/vote`, {
+      method: 'POST',
+      body: JSON.stringify({ sessionId, optionIndex }),
+    }),
+  getDemocracySession: (groupId) => request(`/groups/${groupId}/democracy/session`),
+
   // Audit Log
   getAuditLogs: (groupId) => request(`/groups/${groupId}/audit`),
 

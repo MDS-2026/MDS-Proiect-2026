@@ -16,6 +16,7 @@ import com.mdsproject.backend.models.FairPayGroup;
 import com.mdsproject.backend.repositories.UserRepository;
 import com.mdsproject.backend.repositories.FairPayGroupRepository;
 import com.mdsproject.backend.services.AlertService;
+import com.mdsproject.backend.services.DemocracyAgentService;
 
 import java.security.Principal;
 import java.util.UUID;
@@ -29,6 +30,7 @@ public class ChatController {
     private final UserRepository userRepository;
     private final FairPayGroupRepository groupRepository;
     private final AlertService alertService;
+    private final DemocracyAgentService democracyAgentService;
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
@@ -73,9 +75,20 @@ public class ChatController {
                 saved.getGroupId(),
                 saved.getSenderEmail(),
                 saved.getContent(),
-                saved.getCreatedAt()
+                saved.getCreatedAt(),
+                saved.getMessageType(),
+                saved.getMetadata()
         );
 
         messagingTemplate.convertAndSend("/topic/chat/" + groupId, dto);
+
+        // Check for Democracy Agent trigger after broadcasting the user's message
+        if (democracyAgentService.isTrigger(saved.getContent())) {
+            try {
+                democracyAgentService.handleTrigger(groupId, saved.getContent());
+            } catch (Exception e) {
+                // Never let democracy errors disrupt chat delivery
+            }
+        }
     }
 }
