@@ -9,7 +9,7 @@
 > **Când:** secțiunile 1–6 după cursul 2 (S3); secțiunile 7–8 după cursul 3 (S4).
 > **AI:** permis și declarat (în mesajul de commit), ca la orice livrabil. La atelier, fiecare membru trebuie să poată explica orice rând de aici.
 >
-> Indicațiile sunt comentarii `<!-- ... -->`: nu apar pe GitHub, le puteți lăsa sau șterge.
+> Indicațiile sunt comentarii `<!-- ... -->`: nu apar pe GitHub, le puteți lăsa sau șterge
 
 | | |
 |---|---|
